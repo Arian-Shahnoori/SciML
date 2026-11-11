@@ -28,6 +28,8 @@ $$
 
 The maximum streamwise velocity is 4.5 at the channel centreline, and the mean streamwise velocity is 3. The momentum equations are not solved, and the velocity field does not change with the thermal parameters.
 
+![Computational domain, thermal boundary conditions, and prescribed parabolic velocity profile](assets/figures/problem_setup.png)
+
 ### Governing equation
 
 The steady dimensionless energy equation is
@@ -189,6 +191,8 @@ The mean relative discrete L2 error decreased as more modes were retained:
 
 The triangulated error maps in the report visualize interpolation over the irregular LHS samples; they do not represent additional ROM evaluations between sampled points.
 
+![Relative L2 error statistics for the original POD basis across the LHS screening set](report/figures/lhs_mode_count_error.pdf)
+
 ### Hotspot selection and local enrichment
 
 High-error candidates were identified from the screening results at 5, 6, 8, and 10 modes. For each mode count, the 20 largest-error cases were considered and the six highest-ranked cases were retained as candidates. Candidates were ranked separately because the error scales differ across mode counts. Repeated parameter combinations were grouped, and their mean rank score and support fraction were combined as `S_base = 0.70 S_rank + 0.30 S_support`. A normalized Euclidean distance in `(μ, Br)` was then used to encourage spatial diversity through `S_selection = 0.55 S_base + 0.45 d_min`. The algorithm allowed up to six centres; three were selected for this dataset.
@@ -221,6 +225,12 @@ The relative L2 error is calculated from the complete reconstructed temperature 
 | 6 | 0.001571 | 0.000930 | 40.77% | 0.026048 | 0.005040 | 80.65% | 22% |
 | 8 | 0.000876 | 0.000141 | 83.91% | 0.018205 | 0.001747 | 90.40% | 11% |
 | 10 | 0.000577 | 0.0000174 | 96.98% | 0.013008 | 0.000401 | 96.92% | 20% |
+
+![Mean, median, 95th-percentile, and maximum relative L2 errors for the original and augmented POD bases](assets/figures/original_augmented_statistics.png)
+
+![Case-wise changes in relative L2 error caused by snapshot enrichment; positive values indicate higher error with the augmented basis](assets/figures/paired_casewise_error_change.png)
+
+![Triangulated relative L2 error maps for the original and augmented bases at ten retained modes](assets/figures/ten_mode_error_map.png)
 
 ### Interpretation
 
