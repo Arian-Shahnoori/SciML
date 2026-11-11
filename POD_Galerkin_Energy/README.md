@@ -10,6 +10,24 @@ A POD basis is obtained from full-order temperature-deviation snapshots. The dis
 
 The original basis is evaluated over a Latin hypercube sampling (LHS) dataset. High-error parameter regions are used to guide local snapshot enrichment. The original and augmented bases are then compared using the same final set of full-order reference solutions.
 
+
+## Quick links
+
+The links below are relative to the project root (the directory containing this README).
+
+- [Source code](code/src/)
+- [Solver implementations](code/src/solvers/)
+- [Grid and initialization](code/src/grid.py)
+- [Initialization](code/src/initialization.py)
+- [Boundary conditions](code/src/boundary_conditions.py)
+- [POD construction and reconstruction](code/studies/f03_pod_analysis/)
+- [Galerkin ROM implementation](code/studies/f04_galerkin_rom/)
+- [Snapshot enrichment and independent evaluation](code/studies/f05_refinement/)
+- [Study results](code/studies/results/)
+- [LaTeX report source](report/main.tex)
+- [Report sections](report/sections/)
+- [README figures](report/figures/)
+
 ## Problem formulation
 
 ### Domain and prescribed flow
@@ -166,6 +184,14 @@ $$
 
 This is a discrete Galerkin projection of the spatial operators assembled by the FOM. Its matrix sign convention follows the FOM right-hand-side operators and should not be confused with a separately derived continuous weak-form stiffness matrix.
 
+### Initial Galerkin evaluation on the training set
+
+The initial Galerkin ROM was also evaluated at the 100 parameter combinations used to construct the original POD basis. Across these cases, the mean relative L2 error was `2.401402e-2`, the median was `1.705007e-2`, and the maximum was `1.262083e-1`. Since these parameter combinations belong to the POD training set, these results are an in-sample assessment and should not be interpreted as independent prediction accuracy.
+
+The largest error occurred for case `train_0020`, at `Pe = μ = 12`, `Br = 2`, and `c = 1`. Its relative L2 error was approximately **12.62%**. The figure compares the full-order temperature field, the Galerkin reconstruction, and their absolute difference.
+
+![Full-order temperature, Galerkin ROM reconstruction, and absolute error for the maximum-error training case train_0020](report/figures/Galerkin_maximum_error.png)
+
 ## Error assessment and snapshot enrichment
 
 ### Initial LHS screening
@@ -247,43 +273,30 @@ The report records a mean FOM time of `0.137740 s` over 100 cases and a mean ROM
 
 ## Software organization
 
-The report describes two main parts of the codebase:
-
-- `src/`: shared grid, initialization, boundary-condition, diagnostic, and full-order solver modules.
-- `Studies/`: scripts for Galerkin ROM evaluation, parameter studies, enrichment, and final comparison.
-
-Key modules and scripts documented in the report include:
+The project keeps shared numerical modules separate from the study scripts:
 
 ```text
-src/
-├── grid.py
-├── initialization.py
-├── boundary_conditions.py
-├── diagnostics.py
-└── solvers/
-    └── direct.py
-
-Studies/
-├── F04_galerkin_rom/
-│   ├── f01_operators.py
-│   ├── f02_reduced_operators.py
-│   ├── f03_solve_reduced.py
-│   ├── f04_rom_for_case.py
-│   └── f05_test_rom.py
-└── F05_refinement/
-    ├── f00_generate_large_training_cases.py
-    ├── f01_build_pod_basis.py
-    ├── f02_generate_large_test_cases.py
-    ├── f03_mode_count_study.py
-    ├── f04_generate_augmented_training_set.py
-    ├── f05_build_augmented_pod_basis.py
-    ├── f06_generate_independent_test_set.py
-    └── f07_compare_original_and_augmented_bases.py
+Code/
+├── Src/
+│   ├── Boundary_conditions.py
+│   ├── Config.py
+│   ├── Diagnostics.py
+│   ├── Grid.py
+│   ├── Initialization.py
+│   └── Solvers/
+│       └── direct/
+└── Studies/
+    ├── F00_solve_with_direct.py
+    ├── F01_parameter_grid.py
+    ├── F02_parameters_sweep.py
+    ├── F03_pod_analysis/
+    ├── F04_galerkin_rom/
+    ├── F05_refinement/
+    └── Results/
 ```
 
-The full-order solver is implemented in `src/solvers/direct.py`. The Galerkin scripts construct and project the discrete operators, assemble and solve the reduced system, and reconstruct the temperature field. The refinement scripts generate the training and LHS datasets, perform the mode-count study, select hotspots, build the augmented basis, and run the paired comparison.
+The full-order solver constructs the sparse spatial operator, applies the ghost-cell boundary treatment, advances the solution in pseudo-time, and checks the steady-state residual. The Galerkin ROM scripts separate full-order operator construction, projection onto the POD basis, reduced-system solution, and case-level evaluation. The refinement scripts handle LHS screening, hotspot selection, additional snapshot generation, augmented-basis construction, and the final paired comparison.
 
-> **Repository check:** The technical report uses the directory name `src/` and describes the study scripts under `Studies/`. Confirm exact directory capitalization and file names against the current repository before using this tree as an executable path guide.
 
 ## Workflow
 
@@ -312,4 +325,6 @@ The report identifies Python as the implementation language. Exact dependency ve
 
 ## Technical report
 
-The accompanying technical report, *Parameterized Two-Dimensional Steady-State Energy Equation: Full-Order Numerical Modeling, Discrete Galerkin–POD Reduction, and Error-Guided Snapshot Enrichment*, contains the full mathematical derivation, numerical implementation details, error statistics, plots, and supplementary parameter-space error maps.
+The full technical report, *Parameterized Two-Dimensional Steady-State Energy Equation: Full-Order Numerical Modeling, Discrete Galerkin–POD Reduction, and Error-Guided Snapshot Enrichment*, contains the mathematical derivation, numerical implementation details, complete error statistics, and supplementary figures.
+
+[Read the full technical report (PDF)](report/POD_Energy.pdf)
