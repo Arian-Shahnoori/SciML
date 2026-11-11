@@ -14,19 +14,14 @@ The original basis is evaluated over a Latin hypercube sampling (LHS) dataset. H
 ## Quick links
 
 The links below are relative to the project root (the directory containing this README).
-
-- [Source code](code/src/)
+- [Read the full technical report (PDF)](report/POD_Energy.pdf)
+- [Source code](code/)
 - [Solver implementations](code/src/solvers/)
-- [Grid and initialization](code/src/grid.py)
-- [Initialization](code/src/initialization.py)
-- [Boundary conditions](code/src/boundary_conditions.py)
 - [POD construction and reconstruction](code/studies/f03_pod_analysis/)
 - [Galerkin ROM implementation](code/studies/f04_galerkin_rom/)
 - [Snapshot enrichment and independent evaluation](code/studies/f05_refinement/)
-- [Study results](code/studies/results/)
-- [LaTeX report source](report/main.tex)
 - [Report sections](report/sections/)
-- [README figures](report/figures/)
+- [Figures](report/figures/)
 
 ## Problem formulation
 
