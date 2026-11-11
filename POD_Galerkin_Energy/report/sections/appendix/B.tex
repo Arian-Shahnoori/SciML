@@ -1,0 +1,289 @@
+\section{Software Architecture and Implementation Details}
+\label{app:software_architecture}
+
+The project is organized into two main directories:
+\texttt{src}, which contains the shared numerical
+components, and \texttt{Studies}, which contains the
+scripts for snapshot generation, POD construction,
+Galerkin projection, refinement, and evaluation.
+
+\subsection{Shared numerical modules}
+
+The main source modules are responsible for the
+computational grid, initialization, boundary conditions,
+diagnostics, and full-order solution.
+
+\paragraph{\texttt{src/grid.py} and
+\texttt{src/initialization.py}.}
+
+The function \texttt{create\_grid} generates the
+structured grid coordinates. The initialization
+module provides the initial temperature field through
+\texttt{initialize\_temperature}, which initializes
+$T(y)=y$, and constructs the prescribed velocity
+components using \texttt{initialize\_velocity\_fields}.
+
+\paragraph{\texttt{src/boundary\_conditions.py}.}
+
+The function \texttt{apply\_temperature\_boundary\_conditions}
+implements the four temperature boundary conditions
+using ghost cells. It applies the prescribed inlet
+and wall temperatures and the zero-gradient outlet
+condition.
+
+\paragraph{\texttt{src/diagnostics.py}.}
+
+The function \texttt{build\_rhs} evaluates the
+non-temporal terms of the discretized energy equation.
+The function \texttt{steady\_state\_residual\_rms}
+calculates the RMS residual over the computational
+domain. This residual is used to determine convergence
+of the full-order solver.
+
+\paragraph{\texttt{src/solvers/direct.py}.}
+
+The full-order solver is implemented through four
+main functions:
+\begin{itemize}
+    \item \texttt{build\_spatial\_matrix}: Constructs
+    the sparse five-diagonal spatial matrix. It maps
+    physical two-dimensional indices to the
+    one-dimensional system and incorporates
+    ghost-cell contributions into the matrix
+    coefficients.
+
+    \item \texttt{build\_rhs}: Constructs the
+    right-hand-side contribution for an individual
+    row.
+
+    \item \texttt{build\_forcing\_field}: Applies
+    \texttt{build\_rhs} over the computational domain
+    to assemble the forcing vector.
+
+    \item \texttt{solve\_with\_direct}: Assembles
+    the spatial matrix and forcing vector, factorizes
+    $(\mathbf{I}-\Delta t\mathbf{A})$, advances the
+    temperature field, and checks convergence using
+    the steady-state RMS residual.
+\end{itemize}
+
+\subsection{POD construction and Galerkin implementation}
+
+\paragraph{Original snapshot generation and POD basis.}
+
+The script
+\texttt{F05\_refinement/f00\_generate\_large\_training\_cases.py}
+generates the 100-case training parameter grid. Its
+function \texttt{build\_parameter\_grid} creates the
+parameter combinations. Each case is then solved
+using \texttt{run\_fom\_case}. Converged temperature
+fields are converted into snapshot columns, and
+their associated simulation information is stored
+in \texttt{snapshot\_case\_records}.
+
+The script
+\texttt{F05\_refinement/f01\_build\_pod\_basis.py}
+loads the snapshot matrix and its case records,
+performs the SVD, calculates the POD energy
+distribution, and saves the resulting basis.
+
+\paragraph{\texttt{F04\_galerkin\_rom/f01\_operators.py}.}
+
+This module constructs the full-order operator
+components required for Galerkin projection.
+
+The function \texttt{\_assemble\_spatial\_matrix}
+builds the spatial matrix used to extract the
+convection and diffusion operators.
+
+The function \texttt{build\_linear\_operators}
+constructs $\mathbf{C}_h$ and $\mathbf{L}_h$.
+The function \texttt{build\_viscous\_dissipation\_source}
+calculates the parameter-independent source vector
+$\boldsymbol{\Phi}_h$ from the prescribed velocity field.
+
+The function \texttt{build\_lifting\_residual}
+calculates the discrete lifting contribution, while
+\texttt{\_assemble\_forcing\_field} obtains the
+affine forcing through the existing full-order
+forcing routine.
+
+The function \texttt{verify\_operator\_decomposition}
+provides checks for the consistency of the operator
+decomposition and lifting-residual formulation.
+Finally, \texttt{build\_operator\_components}
+collects the resulting matrices and vectors.
+
+\paragraph{\texttt{F04\_galerkin\_rom/f02\_reduced\_operators.py}.}
+
+This module projects the full-order operators onto
+the retained POD basis. It constructs the reduced
+convection and diffusion matrices and the projected
+viscous-dissipation and lifting vectors:
+\[
+\begin{aligned}
+\mathbf{C}_r&=\mathbf{V}_r^T\mathbf{C}_h\mathbf{V}_r,\\
+\mathbf{L}_r&=\mathbf{V}_r^T\mathbf{L}_h\mathbf{V}_r,\\
+\boldsymbol{\Phi}_r&=\mathbf{V}_r^T\boldsymbol{\Phi}_h,\\
+\mathbf{g}_r&=\mathbf{V}_r^T\mathbf{g}_{\mathrm{lift}}.
+\end{aligned}
+\]
+
+\paragraph{\texttt{F04\_galerkin\_rom/f03\_solve\_reduced.py}.}
+
+This module handles reduced-system assembly,
+solution, and temperature reconstruction.
+
+The function \texttt{construct\_reduced\_system}
+assembles the reduced matrix and forcing vector.
+The function \texttt{solve\_reduced\_system}
+calculates the modal coefficients and returns
+the reduced-system residual. The function
+\texttt{reconstruct\_temperature} recovers the
+temperature field from the modal coefficients
+and reference temperature.
+
+The main function, \texttt{run\_reduced\_model},
+coordinates these operations and saves the
+reduced system, modal coefficients, and
+reconstructed temperature field.
+
+\paragraph{Case-level ROM evaluation.}
+
+The script
+\texttt{F04\_galerkin\_rom/f04\_rom\_for\_case.py}
+provides case-level full-order and reduced-order
+evaluations. Its main function,
+\texttt{run\_rom\_for\_case}, processes the
+specified cases, computes their error metrics,
+saves the reconstructed fields and records,
+and identifies the minimum- and maximum-error
+cases for visualization.
+
+The functions \texttt{run\_fom\_case} and
+\texttt{run\_rom\_case} provide the corresponding
+full-order and reduced-order calculations.
+The script
+\texttt{F04\_galerkin\_rom/f05\_test\_rom.py}
+generates parameter cases and passes them to
+the case-level evaluation routine.
+
+\subsection{Snapshot enrichment and independent evaluation}
+
+The refinement workflow is implemented through
+the scripts in \texttt{F05\_refinement}.
+
+\paragraph{Mode-count study.}
+
+The script
+\texttt{f03\_mode\_count\_study.py}
+evaluates the original POD basis over the LHS
+screening dataset. It constructs the full-order
+operators, evaluates the ROM for each selected
+mode count, records the error metrics, and
+generates the error-statistics plots and
+triangulated error maps.
+
+\paragraph{Hotspot selection and additional snapshots.}
+
+The script
+\texttt{f04\_generate\_augmented\_training\_set.py}
+identifies high-error candidates and selects
+spatially diverse hotspot centres.
+
+The function \texttt{build\_hotspot\_candidates}
+ranks the high-error cases separately for each
+selected mode count, groups repeated parameter
+combinations, and calculates their mean rank
+scores, support fractions, and base scores.
+
+The function \texttt{select\_hotspots} applies
+the spatial-diversity criterion. The function
+\texttt{build\_augmented\_parameter\_grid}
+generates the local parameter combinations
+around the selected centres and removes
+invalid, duplicate, and previously sampled
+points.
+
+Finally, \texttt{run\_augmented\_training\_set\_generation}
+solves the additional full-order cases and
+saves their temperature fields and records.
+
+\paragraph{Augmented POD basis.}
+
+The script
+\texttt{f05\_build\_augmented\_pod\_basis.py}
+combines the original and additional snapshot
+matrices through
+\texttt{combine\_snapshot\_datasets}. The
+combined matrix is then decomposed using SVD
+to obtain and save the augmented POD basis.
+
+\paragraph{Independent test generation.}
+
+The script
+\texttt{f06\_generate\_independent\_test\_set.py}
+generates the final LHS test dataset. The
+function \texttt{load\_training\_parameter\_keys}
+loads the parameter combinations used in the
+original and augmented training datasets.
+The function \texttt{generate\_test\_parameter\_grid}
+generates unique test combinations and excludes
+previously used training points.
+
+The main function,
+\texttt{run\_independent\_test\_set\_generation},
+runs the full-order solver for the accepted
+test cases and saves their temperature fields
+and simulation records.
+
+\paragraph{Original-versus-augmented comparison.}
+
+The script
+\texttt{f07\_compare\_original\_and\_augmented\_bases.py}
+performs the final paired comparison.
+
+The function \texttt{run\_basis\_comparison}
+loads the independent test cases and both POD
+bases, evaluates them at the selected mode
+counts, and generates the comparison results.
+
+The function \texttt{run\_rom\_evaluations}
+applies each basis to exactly the same test
+cases. The function \texttt{build\_comparison\_summary}
+calculates the aggregate error statistics,
+while \texttt{build\_paired\_comparison}
+matches the original and augmented results
+case by case. The function
+\texttt{build\_improvement\_summary}
+then calculates the error changes and
+improvement statistics.
+
+Finally, the plotting functions generate the
+aggregate error comparisons, error-reduction
+plots, and parameter-space error maps.
+
+\subsection{Overall execution sequence}
+
+The main computational workflow can be summarized
+as follows:
+\begin{enumerate}
+    \item Generate full-order training cases and
+    construct the original POD basis.
+    \item Build the discrete Galerkin operators
+    and evaluate the original ROM.
+    \item Generate the LHS screening dataset and
+    perform the mode-count study.
+    \item Select hotspots and generate additional
+    full-order snapshots.
+    \item Construct the augmented POD basis.
+    \item Generate the independent test dataset.
+    \item Evaluate both POD bases on the same test
+    cases and calculate the paired error statistics.
+\end{enumerate}
+
+This organization separates the shared numerical
+components from the individual study stages and
+allows the full-order solver, POD routines, and
+Galerkin implementation to be reused throughout
+the refinement and evaluation workflow.

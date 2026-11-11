@@ -1,0 +1,16 @@
+snapshot_column,case_id,effective_parameter_mu,peclet_number,brinkman_number,convection_coefficient,source_hotspot_ids,result_file
+0,aug_0001,3.0359370398,3.0359370398,0.2095588298444444,1.0,hotspot_02,studies\f05_refinement\results\augmented_training_set\cases\aug_0001_mu3p03594_Br0p209559.npz
+1,aug_0002,3.0359370398,3.0359370398,0.43066994095555555,1.0,hotspot_02,studies\f05_refinement\results\augmented_training_set\cases\aug_0002_mu3p03594_Br0p43067.npz
+2,aug_0003,4.0666525247,4.0666525247,1.6589295619444444,1.0,hotspot_01,studies\f05_refinement\results\augmented_training_set\cases\aug_0003_mu4p06665_Br1p65893.npz
+3,aug_0004,4.0666525247,4.0666525247,1.8800406730555554,1.0,hotspot_01,studies\f05_refinement\results\augmented_training_set\cases\aug_0004_mu4p06665_Br1p88004.npz
+4,aug_0005,5.7207244273,5.7207244273,1.2101696898444445,1.0,hotspot_03,studies\f05_refinement\results\augmented_training_set\cases\aug_0005_mu5p72072_Br1p21017.npz
+5,aug_0006,5.7207244273,5.7207244273,1.4312808009555555,1.0,hotspot_03,studies\f05_refinement\results\augmented_training_set\cases\aug_0006_mu5p72072_Br1p43128.npz
+6,aug_0007,8.5359370398,8.5359370398,0.2095588298444444,1.0,hotspot_02,studies\f05_refinement\results\augmented_training_set\cases\aug_0007_mu8p53594_Br0p209559.npz
+7,aug_0008,8.5359370398,8.5359370398,0.3201143854,1.0,hotspot_02,studies\f05_refinement\results\augmented_training_set\cases\aug_0008_mu8p53594_Br0p320114.npz
+8,aug_0009,8.5359370398,8.5359370398,0.43066994095555555,1.0,hotspot_02,studies\f05_refinement\results\augmented_training_set\cases\aug_0009_mu8p53594_Br0p43067.npz
+9,aug_0010,9.5666525247,9.5666525247,1.6589295619444444,1.0,hotspot_01,studies\f05_refinement\results\augmented_training_set\cases\aug_0010_mu9p56665_Br1p65893.npz
+10,aug_0011,9.5666525247,9.5666525247,1.7694851175,1.0,hotspot_01,studies\f05_refinement\results\augmented_training_set\cases\aug_0011_mu9p56665_Br1p76949.npz
+11,aug_0012,9.5666525247,9.5666525247,1.8800406730555554,1.0,hotspot_01,studies\f05_refinement\results\augmented_training_set\cases\aug_0012_mu9p56665_Br1p88004.npz
+12,aug_0013,11.2207244273,11.2207244273,1.2101696898444445,1.0,hotspot_03,studies\f05_refinement\results\augmented_training_set\cases\aug_0013_mu11p2207_Br1p21017.npz
+13,aug_0014,11.2207244273,11.2207244273,1.3207252454,1.0,hotspot_03,studies\f05_refinement\results\augmented_training_set\cases\aug_0014_mu11p2207_Br1p32073.npz
+14,aug_0015,11.2207244273,11.2207244273,1.4312808009555555,1.0,hotspot_03,studies\f05_refinement\results\augmented_training_set\cases\aug_0015_mu11p2207_Br1p43128.npz

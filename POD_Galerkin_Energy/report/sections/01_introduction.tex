@@ -1,0 +1,35 @@
+\section{Introduction}
+
+\subsection{Motivation}
+
+Repeated numerical solutions of parameterized partial differential equations can be computationally expensive, particularly when a large number of parameter combinations must be investigated. Reduced-order modelling offers an alternative by representing the solution in a low-dimensional space.
+
+Proper orthogonal decomposition (POD) extracts dominant spatial modes from full-order solutions, while Galerkin projection transforms the governing equations into a reduced system. However, high POD energy retention does not necessarily guarantee accurate predictions across the entire parameter domain. Therefore, the performance of a reduced-order model must also be assessed at parameter combinations not used during basis construction.
+
+\subsection{Problem Statement and Objectives}
+
+This study develops a discrete Galerkin--POD reduced-order model for a parameterized two-dimensional steady-state energy equation. The main objectives are:
+
+\begin{enumerate}
+    \item Develop a full-order numerical model and generate parameterized temperature solutions.
+    \item Construct a POD basis using singular value decomposition.
+    \item Develop a reduced-order model through discrete Galerkin projection.
+    \item Evaluate ROM accuracy for different numbers of retained modes.
+    \item Identify parameter regions associated with relatively large approximation errors.
+    \item Apply targeted snapshot enrichment and construct an augmented POD basis.
+    \item Compare the original and augmented bases using an independent test dataset.
+\end{enumerate}
+
+The enrichment strategy is examined to determine whether additional snapshots can improve ROM accuracy, both overall and across individual parameter combinations.
+
+\subsection{Scope of the Study}
+
+The investigation considers a fixed two-dimensional rectangular domain, a prescribed velocity field, and a uniform computational grid. The two varying parameters are the effective parameter $\mu=cPe$ and the Brinkman number $Br$, with $c=1$:
+
+\begin{equation}
+    1 \leq \mu \leq 100,
+    \qquad
+    0.01 \leq Br \leq 2.
+\end{equation}
+
+The study focuses on steady-state temperature prediction. Changes in geometry, velocity field, mesh resolution, and governing equations are outside its scope.

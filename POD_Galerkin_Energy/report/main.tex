@@ -1,0 +1,173 @@
+\documentclass[11pt,a4paper]{article}
+
+%================================================
+% Packages and formatting
+%================================================
+
+\input{packages}
+
+%================================================
+% Document information
+%================================================
+
+\title{
+    \Huge\textbf{Parameterized Two-Dimensional
+    Steady-State Energy Equation}\\[0.4cm]
+    \Large
+    Full-Order Numerical Modeling, Discrete
+    Galerkin--POD Reduction, and
+    Error-Guided Snapshot Enrichment
+}
+
+\author{
+    \Large Arian Shahnoori
+}
+
+\date{\today}
+
+%================================================
+\begin{document}
+%================================================
+
+%------------------------------------------------
+% Title and abstract
+%------------------------------------------------
+
+\pagenumbering{gobble}
+
+\maketitle
+
+\begin{abstract}
+A numerical framework is developed for the solution and
+reduced-order modeling of a parameterized two-dimensional
+steady-state energy equation with prescribed velocity and
+viscous dissipation. The full-order model employs a
+cell-centered second-order spatial discretization with
+ghost-cell boundary treatment and an iterative procedure
+for obtaining steady-state solutions. A proper orthogonal
+decomposition (POD) basis is constructed from parameterized
+full-order solutions, and a reduced-order model is developed
+through Galerkin projection of the discrete spatial operators.
+The accuracy of the reduced-order model is evaluated for
+different numbers of retained modes using independent
+parameter samples. An error-guided snapshot enrichment
+strategy is subsequently investigated by selecting additional
+full-order solutions from regions associated with relatively
+large approximation errors. The original and augmented POD
+bases are compared using a common independent test dataset
+to assess the effect of enrichment on reduced-order accuracy
+across the parameter domain.
+\end{abstract}
+
+\vspace{0.4cm}
+
+%------------------------------------------------
+% Problem overview
+%------------------------------------------------
+
+\begin{center}
+    \textbf{Study Overview}
+
+    \vspace{0.15cm}
+
+    {\small
+    \renewcommand{\arraystretch}{1.15}
+    \setlength{\tabcolsep}{5pt}
+
+    \begin{tabular}{@{}p{0.27\textwidth}p{0.68\textwidth}@{}}
+        \toprule
+        \textbf{Problem} &
+        Parameterized two-dimensional steady-state energy equation \\
+
+        \textbf{Governing physics} &
+        Convection, thermal diffusion, and viscous dissipation \\
+
+        \textbf{Computational domain} &
+        Rectangular channel ($L_x\times L_y=5\times1$) \\
+
+        \textbf{Velocity field} &
+        Prescribed parabolic profile \\
+
+        \textbf{Spatial discretization} &
+        Cell-centered second-order central differences \\
+
+        \textbf{Computational grid} &
+        $N_x\times N_y=50\times20$ \\
+
+        \textbf{Boundary treatment} &
+        Ghost-cell boundary closures \\
+
+        \textbf{Full-order solver} &
+        Backward-Euler pseudo-time marching with sparse LU factorization \\
+
+        \textbf{Reduced-order method} &
+        Proper orthogonal decomposition and discrete Galerkin projection \\
+
+        \textbf{Parameter space} &
+        $c=1$, $\mu=cPe\in[1,100]$, $Br\in[0.01,2]$ \\
+
+        \textbf{Basis enrichment} &
+        Error-guided local snapshot enrichment \\
+
+        \textbf{Evaluation metrics} &
+        Relative $L_2$ error, RMSE, and maximum absolute error \\
+
+        \textbf{Programming language} &
+        Python \\
+        \bottomrule
+    \end{tabular}
+    }
+\end{center}
+
+%================================================
+% Contents
+%================================================
+
+\clearpage
+
+\pagenumbering{roman}
+
+\tableofcontents
+
+\clearpage
+
+%================================================
+% Main report
+%================================================
+
+\pagenumbering{arabic}
+
+\input{sections/01_introduction}
+
+\input{sections/02_physical_problem_and_mathematical_formulation}
+
+\input{sections/03_Full-order_numerical_model}
+
+\input{sections/04_Construction_of_the_original_POD_basis}
+
+\input{sections/05_Discrete_Galerkin_POD_reduced_order_model}
+
+\input{sections/06_Error_assessment_and_adaptive_snapshot_enrichment}
+
+\input{sections/07_Independent_evaluation_methodology}
+
+\input{sections/08_Results_and_discussion}
+
+\input{sections/09_Conclusions_and_future_work}
+
+%================================================
+% Appendices
+%================================================
+
+\clearpage
+
+\appendix
+
+\input{sections/appendix/A}
+
+\clearpage
+
+\input{sections/appendix/B}
+
+%================================================
+\end{document}

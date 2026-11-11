@@ -1,0 +1,451 @@
+\section{Construction of the Original POD Basis}
+\label{sec:original_pod_basis}
+
+This section describes the construction of the original proper
+orthogonal decomposition (POD) basis from the full-order temperature
+solutions. The procedure consists of generating a parameterized
+training dataset, assembling the snapshot matrix, performing singular
+value decomposition, and selecting a reduced set of spatial modes.
+The resulting basis is subsequently used in the Galerkin
+reduced-order model.
+
+\subsection{Original training dataset}
+
+The original training dataset is generated using a uniform
+two-dimensional parameter grid over the prescribed ranges of the
+effective parameter $\mu$ and the Brinkman number $Br$. The
+parameter grid contains ten equally spaced values for each
+parameter:
+\[
+N_{\mu}=10,\qquad N_{Br}=10.
+\]
+The parameter ranges are
+\[
+1\leq\mu\leq100,\qquad
+0.01\leq Br\leq2.
+\]
+The Cartesian product of the two parameter grids gives a total of
+\[
+\boxed{N_s=N_{\mu}N_{Br}=100}
+\]
+parameter combinations.
+
+For each parameter pair $(\mu_k,Br_k)$, the full-order solver
+computes a steady-state temperature field $\mathbf{T}_k$. A
+simulation case is accepted into the training dataset only when
+the solver reports successful convergence. The simulation summary
+stores the case identifier, parameter values, convergence status,
+final residual, number of iterations, and computation time.
+All 100 cases in the original training dataset are marked as
+successful.
+
+The resulting dataset therefore contains 100 full-order
+temperature solutions associated with 100 distinct parameter
+combinations. An earlier 25-case parameter sweep was also
+performed during the development of the project; however, the
+POD basis and energy results presented in this section correspond
+to the subsequent 100-case dataset.
+
+\subsection{Snapshot preparation}
+
+The POD basis is constructed using temperature deviations rather
+than the complete temperature fields. As introduced in the
+previous section, the temperature field is decomposed as
+\[
+T_k(x,y)=T_{\mathrm{ref}}(y)+\theta_k(x,y),
+\qquad
+T_{\mathrm{ref}}(y)=y.
+\]
+The reference temperature satisfies the prescribed
+non-homogeneous temperature boundary conditions. Subtracting
+this fixed profile gives the deviation field
+\[
+\boxed{
+\boldsymbol{\theta}_k
+=
+\mathbf{T}_k-\mathbf{T}_{\mathrm{ref}}.
+}
+\]
+This transformation separates the fixed reference profile
+from the parameter-dependent part of the temperature field.
+The resulting deviation fields satisfy homogeneous temperature
+boundary conditions and are used to construct the snapshot
+matrix.
+
+The snapshot preparation procedure consists of the following
+steps:
+\begin{enumerate}
+    \item The converged physical temperature field is loaded
+    for each accepted simulation case.
+    \item Ghost cells are removed to retain only the physical
+    computational domain.
+    \item The reference temperature field is subtracted from
+    the physical temperature field.
+    \item The resulting two-dimensional deviation field is
+    flattened into a one-dimensional vector of length
+    $N_xN_y$.
+    \item The vector is stored as one column of the snapshot
+    matrix.
+\end{enumerate}
+
+The flattening operation follows the same indexing convention
+as the full-order solver, with the wall-normal index varying
+fastest. The snapshot matrix is consequently defined as
+\[
+\mathbf{X}
+=
+\begin{bmatrix}
+| & | & & |\\
+\boldsymbol{\theta}_1 &
+\boldsymbol{\theta}_2 &
+\cdots &
+\boldsymbol{\theta}_{100}\\
+| & | & & |
+\end{bmatrix}.
+\]
+
+For the present computational grid,
+\[
+N_x=50,\qquad N_y=20,
+\]
+and therefore each snapshot contains 1000 physical degrees of
+freedom. Since the training dataset contains 100 snapshots,
+the resulting snapshot matrix has dimensions
+\[
+\boxed{
+\mathbf{X}\in\mathbb{R}^{1000\times100}.
+}
+\]
+
+The parameter values are stored separately from the snapshot
+matrix as metadata. Their association with the snapshots can
+be represented by the parameter matrix
+\[
+\mathbf{P}
+=
+\begin{bmatrix}
+\mu_1 & \mu_2 & \cdots & \mu_{100}\\
+Br_1 & Br_2 & \cdots & Br_{100}
+\end{bmatrix}
+\in\mathbb{R}^{2\times100}.
+\]
+Thus, column $k$ of $\mathbf{X}$ corresponds to column $k$
+of $\mathbf{P}$:
+\[
+\boldsymbol{\theta}_k
+\longleftrightarrow
+\begin{bmatrix}
+\mu_k\\
+Br_k
+\end{bmatrix}.
+\]
+This correspondence is maintained through the simulation
+metadata and case identifiers. Although the parameter values
+are not directly used in the standard POD decomposition,
+they are required to associate each snapshot with its
+corresponding parameter combination.
+
+\subsection{Singular value decomposition}
+
+The snapshot matrix is decomposed using the economy singular
+value decomposition (SVD):
+\[
+\boxed{
+\mathbf{X}=\mathbf{U}\mathbf{\Sigma}\mathbf{W}^{T}.
+}
+\]
+For the present snapshot matrix, the dimensions of the
+decomposition are
+\[
+\begin{aligned}
+\mathbf{X}&\in\mathbb{R}^{1000\times100},\\
+\mathbf{U}&\in\mathbb{R}^{1000\times100},\\
+\mathbf{\Sigma}&\in\mathbb{R}^{100\times100},\\
+\mathbf{W}^{T}&\in\mathbb{R}^{100\times100}.
+\end{aligned}
+\]
+
+The matrices obtained from the decomposition have the
+following roles:
+\begin{itemize}
+    \item $\mathbf{U}$ contains the spatial POD modes as its
+    columns. Each column represents a spatial pattern in the
+    temperature-deviation field.
+
+    \item $\mathbf{\Sigma}$ is a diagonal matrix containing
+    the singular values, ordered from largest to smallest:
+    \[
+    \sigma_1\geq\sigma_2\geq\cdots\geq\sigma_{100}\geq0.
+    \]
+    The magnitude of each singular value indicates the
+    contribution of its corresponding mode to the snapshot
+    matrix.
+
+    \item $\mathbf{W}$ contains the right singular vectors.
+    These vectors describe the contributions of the individual
+    snapshots to the decomposition and provide the coefficients
+    used to reconstruct the original snapshots.
+\end{itemize}
+
+A reduced spatial basis is obtained by retaining only the first
+$r$ columns of $\mathbf{U}$:
+\[
+\boxed{
+\mathbf{V}_r=\mathbf{U}(:,1:r).
+}
+\]
+Equivalently,
+\[
+\mathbf{V}_r
+=
+\begin{bmatrix}
+\boldsymbol{\phi}_1 &
+\boldsymbol{\phi}_2 &
+\cdots &
+\boldsymbol{\phi}_r
+\end{bmatrix},
+\]
+where $\boldsymbol{\phi}_i$ denotes the $i$-th spatial POD
+mode.
+
+The columns of $\mathbf{U}$ are orthonormal. Therefore, the
+retained modes satisfy
+\[
+\boxed{
+\mathbf{V}_r^T\mathbf{V}_r=\mathbf{I}_r.
+}
+\]
+This orthogonality property allows the temperature-deviation
+field to be represented by a reduced set of independent
+spatial basis functions.
+
+\subsection{POD energy and mode selection}
+
+The singular values quantify the relative contribution of the
+spatial modes to the snapshot matrix. The energy fraction
+associated with the $i$-th mode is defined as
+\[
+\boxed{
+E_i=
+\frac{\sigma_i^2}
+{\displaystyle\sum_{j=1}^{N_s}\sigma_j^2}.
+}
+\]
+The cumulative energy captured by the first $r$ modes is
+\[
+\boxed{
+E_r=
+\frac{\displaystyle\sum_{i=1}^{r}\sigma_i^2}
+{\displaystyle\sum_{j=1}^{N_s}\sigma_j^2}.
+}
+\]
+The squared singular values are used because their sum
+represents the squared Frobenius norm of the snapshot matrix.
+Consequently, $E_r$ measures the fraction of the total
+snapshot energy represented by the first $r$ modes.
+
+The singular values and corresponding energy fractions
+obtained from the original 100-snapshot dataset are reported
+in Table~\ref{tab:pod_energy}. The first eight modes are
+included to show the decay of the singular-value spectrum.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Singular values and POD energy distribution
+    of the original 100-snapshot dataset.}
+    \label{tab:pod_energy}
+    \begin{tabular}{cccc}
+        \toprule
+        \textbf{Mode} &
+        \textbf{Singular value} &
+        \textbf{Energy fraction} &
+        \textbf{Cumulative energy} \\
+        \midrule
+        1 & 788.0597 & 0.926360 & 0.926360 \\
+        2 & 215.0846 & 0.069005 & 0.995365 \\
+        3 & 54.73393 & 0.004469 & 0.999833 \\
+        4 & 10.41370 & 0.000162 & 0.999995 \\
+        5 & 1.810038 & $4.89\times10^{-6}$ & $\approx 1$ \\
+        6 & 0.247505 & $9.14\times10^{-8}$ & $\approx 1$ \\
+        7 & 0.039928 & $2.38\times10^{-9}$ & $\approx 1$ \\
+        8 & 0.004025 & $2.42\times10^{-11}$ & $\approx 1$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The first mode accounts for 92.6360\% of the total snapshot
+energy. Retaining two modes increases the cumulative energy
+to 99.5365\%, while the first three modes capture 99.9833\%.
+With four retained modes, the cumulative energy reaches
+99.9995\%. The cumulative values for modes five to eight
+are displayed approximately as unity because of rounding.
+
+The rapid decay of the singular values indicates that the
+original training snapshots can be represented with high
+energy retention using a relatively small number of spatial
+modes. In particular, the first three or four modes provide
+a highly compact representation of the training dataset.
+
+However, cumulative POD energy alone does not establish
+the accuracy of the reduced-order model at unseen parameter
+combinations. It quantifies how well the retained modes
+represent the original snapshot matrix, rather than how
+accurately the reduced model predicts solutions outside the
+training dataset. Prediction accuracy must be evaluated
+separately using the reduced-order model.
+
+\subsection{POD reconstruction versus new-parameter prediction}
+
+The SVD provides the modal coefficients required to
+reconstruct the snapshots used to construct the POD basis.
+To obtain these coefficients, define the truncated singular
+value matrix and right singular-vector matrix as
+\[
+\mathbf{\Sigma}_r
+=
+\operatorname{diag}(\sigma_1,\ldots,\sigma_r),
+\qquad
+\mathbf{W}_r=\mathbf{W}(:,1:r).
+\]
+
+For an existing snapshot $k$, its reduced coefficient vector
+is obtained directly from the truncated SVD:
+\[
+\boxed{
+\mathbf{a}_k
+=
+\mathbf{\Sigma}_r\mathbf{W}_r^T(:,k).
+}
+\]
+The corresponding temperature-deviation field is
+reconstructed through a linear combination of the retained
+spatial modes:
+\[
+\hat{\boldsymbol{\theta}}_k
+=
+\mathbf{V}_r\mathbf{a}_k.
+\]
+Adding the reference temperature profile gives the
+reconstructed full temperature field:
+\[
+\boxed{
+\hat{\mathbf{T}}_k
+=
+\mathbf{T}_{\mathrm{ref}}
++
+\mathbf{V}_r\mathbf{a}_k.
+}
+\]
+This procedure is referred to as POD reconstruction of an
+existing snapshot. The coefficient vector is directly
+available from the SVD because the snapshot is already a
+column of the original snapshot matrix.
+
+The situation is different for a new parameter combination
+$(\mu^*,Br^*)$ that was not included in the training dataset.
+There is no corresponding snapshot column in $\mathbf{X}$
+and, consequently, the SVD does not provide its modal
+coefficient vector. The spatial basis alone is therefore
+insufficient to determine the temperature field at this new
+parameter combination.
+
+An additional relationship between the parameters and the
+reduced coefficients is required:
+\[
+\boxed{
+(\mu,Br)\longrightarrow\mathbf{a}(\mu,Br).
+}
+\]
+In the present work, this relationship is obtained by
+projecting the discretized governing energy equation onto
+the retained POD basis. The resulting reduced system
+determines the modal coefficients for a specified parameter
+combination. Once these coefficients have been calculated,
+the corresponding temperature field is reconstructed as
+\[
+\boxed{
+\hat{\mathbf{T}}(\mu,Br)
+=
+\mathbf{T}_{\mathrm{ref}}
++
+\mathbf{V}_r\mathbf{a}(\mu,Br).
+}
+\]
+This distinction separates the direct reconstruction of
+existing training snapshots from the prediction of
+temperature fields at new parameter combinations. The
+following section develops the Galerkin projection and
+formulates the resulting reduced-order model.
+
+\subsection{Code implementation}
+
+The construction and analysis of the original POD basis
+are implemented through a sequence of Python scripts.
+The workflow is divided into parameter-grid generation,
+full-order simulations, snapshot preparation, SVD,
+reconstruction, and visualization.
+
+\begin{itemize}
+    \item \texttt{F01\_parameter\_grid.py}: Defines the
+    parameter limits and the number of sampling points for
+    each parameter. The uniform parameter grids are generated
+    using \texttt{numpy.linspace} and combined using
+    \texttt{numpy.meshgrid} and
+    \texttt{numpy.column\_stack}. The resulting parameter
+    combinations are saved to a CSV file.
+
+    \item \texttt{F02\_parameter\_sweep.py}: Loads the
+    parameter-grid CSV file and iterates over the parameter
+    combinations. For each case, it reads $\mu$ and $Br$,
+    calls \texttt{solve\_with\_direct} to obtain the
+    steady-state temperature field, and records selected
+    simulation information. The summary, including the
+    parameter values and convergence information, is saved
+    as a CSV file. This stage generates the full-order
+    dataset used for POD.
+
+    \item \texttt{F03\_pod\_analysis/f01\_snapshot\_matrix.py}:
+    Loads the simulation summary and selects the converged
+    cases. For each case, it loads the corresponding
+    temperature field, subtracts the reference temperature,
+    removes ghost cells, and flattens the resulting
+    two-dimensional deviation field into a vector. These
+    vectors are stacked column-wise to construct the
+    snapshot matrix, which is saved as a NumPy array.
+
+    \item \texttt{F03\_pod\_analysis/f02\_pod.py}: Loads the
+    snapshot matrix and performs its SVD using
+    \texttt{numpy.linalg.svd}. It calculates the modal and
+    cumulative energy distributions from the singular
+    values and saves the resulting POD data, including
+    the spatial modes and singular values.
+
+    \item \texttt{F03\_pod\_analysis/f03\_visualize\_pod\_modes.py}:
+    Loads the spatial modes from the saved POD results,
+    determines the number of available modes, and generates
+    plots of the individual spatial modes.
+
+    \item \texttt{F03\_pod\_analysis/f04\_pod\_reconstruction.py}:
+    Loads the POD results and snapshot metadata, then
+    truncates the SVD according to the selected number of
+    retained modes. It calculates the reconstructed snapshot
+    matrix and evaluates the reconstruction error for each
+    training case. The reconstructed temperature fields
+    and error records are saved together with their
+    corresponding parameter information.
+
+    \item \texttt{F03\_pod\_analysis/f05\_visualize\_reconstruction.py}:
+    Loads the simulation summary and the full-order and
+    reconstructed temperature fields for three selected
+    cases. It generates comparative plots of the
+    full-order temperature fields, POD reconstructions,
+    and their corresponding error fields.
+\end{itemize}
+
+This workflow separates the generation of the full-order
+training dataset from the construction and assessment of
+the POD basis. The reconstruction scripts assess how
+accurately the retained modes reproduce the snapshots
+used to construct the basis. The prediction of solutions
+at new parameter combinations is subsequently handled by
+the Galerkin reduced-order model.

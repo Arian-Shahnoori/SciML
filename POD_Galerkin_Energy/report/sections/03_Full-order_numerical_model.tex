@@ -1,0 +1,475 @@
+\section{Full-Order Numerical Model}
+
+The governing energy equation is discretized in space to obtain
+a system of ordinary differential equations, which is integrated
+iteratively to reach the steady-state solution. This section
+describes the computational grid, spatial discretization,
+boundary implementation, and numerical solution procedure.
+
+\subsection{Computational Grid and Degrees of Freedom}
+
+A uniform Cartesian grid is used to discretize the rectangular
+computational domain. The grid consists of
+
+\begin{equation}
+    N_x=50,
+    \qquad
+    N_y=20,
+\end{equation}
+
+giving a total of
+
+\begin{equation}
+    \boxed{N=N_xN_y=1000}
+\end{equation}
+
+physical degrees of freedom.
+
+The grid spacings in the streamwise and wall-normal directions
+are
+
+\begin{equation}
+    \Delta x=\frac{L_x}{N_x}=0.1,
+    \qquad
+    \Delta y=\frac{L_y}{N_y}=0.05.
+\end{equation}
+
+A cell-centred arrangement is employed, with the physical cell
+centres located at
+
+\begin{equation}
+    x_i=\left(i-\frac{1}{2}\right)\Delta x,
+    \qquad
+    y_j=\left(j-\frac{1}{2}\right)\Delta y,
+\end{equation}
+
+where $i=1,\ldots,N_x$ and $j=1,\ldots,N_y$.
+
+The physical temperature field is represented by a two-dimensional
+array of size $N_x\times N_y$, or equivalently by a vector
+containing $N=1000$ unknowns. One layer of ghost cells is
+allocated around the physical domain to implement the boundary
+conditions. Therefore, the extended temperature array has
+dimensions
+
+\begin{equation}
+    (N_x+2)\times(N_y+2)=52\times22.
+\end{equation}
+
+For the algebraic formulation, the physical temperature field is
+converted into a one-dimensional vector using C-order
+vectorization, in which the wall-normal index varies fastest.
+The mapping between the two-dimensional indices and the vector
+index is
+
+\begin{equation}
+    k=(i-1)N_y+(j-1).
+    \label{eq:vector_indexing}
+\end{equation}
+
+Thus, the full-order temperature vector is written as
+
+\begin{equation}
+    \mathbf{T}\in\mathbb{R}^{1000}.
+\end{equation}
+
+The ghost-cell values are used in the spatial discretization
+but are not included among the physical degrees of freedom.
+
+
+\subsection{Spatial Discretization}
+
+The spatial derivatives are approximated using second-order
+central differences on the uniform Cartesian grid. The
+discretized energy equation can be expressed as a system of
+ordinary differential equations:
+
+\begin{equation}
+    \frac{d\mathbf{T}}{dt}
+    =
+    \mathcal{L}(\mathbf{T}),
+    \label{eq:direct_ode}
+\end{equation}
+
+where $\mathbf{T}$ is the vector of cell-centred temperatures
+and $\mathcal{L}$ denotes the spatial operator, including
+convection, diffusion, viscous dissipation, and boundary
+contributions.
+
+For the direct solver, the spatial operator at cell $(i,j)$
+is expressed in conservative form as
+
+\begin{align}
+    \mathcal{L}_{ij}(\mathbf{T})
+    ={}&
+    -c\frac{
+    u_{i+1,j}T_{i+1,j}
+    -u_{i-1,j}T_{i-1,j}
+    }{2\Delta x}
+    \nonumber\\
+    &-
+    c\frac{
+    v_{i,j+1}T_{i,j+1}
+    -v_{i,j-1}T_{i,j-1}
+    }{2\Delta y}
+    \nonumber\\
+    &+
+    \frac{1}{Pe}
+    \frac{
+    T_{i+1,j}-2T_{i,j}+T_{i-1,j}
+    }{\Delta x^2}
+    \nonumber\\
+    &+
+    \frac{1}{Pe}
+    \frac{
+    T_{i,j+1}-2T_{i,j}+T_{i,j-1}
+    }{\Delta y^2}
+    +S_{ij}.
+    \label{eq:direct_spatial_operator}
+\end{align}
+
+The first two terms represent convective transport in the
+streamwise and wall-normal directions, respectively. The
+next two terms approximate thermal diffusion in the
+corresponding directions. All spatial derivatives are
+discretized using second-order central differences.
+
+The source term $S_{ij}$ accounts for viscous dissipation.
+It is evaluated from the prescribed velocity field and its
+discrete spatial derivatives:
+
+\begin{equation}
+\begin{aligned}
+    S_{ij}
+    =\frac{\mathrm{Ec}}{\mathrm{Re}}
+    \Bigg[
+    &2\left(
+    \frac{u_{i+1,j}-u_{i-1,j}}{2\Delta x}
+    \right)^2
+    \\[4pt]
+    &+2\left(
+    \frac{v_{i,j+1}-v_{i,j-1}}{2\Delta y}
+    \right)^2
+    \\[4pt]
+    &+\left(
+    \frac{u_{i,j+1}-u_{i,j-1}}{2\Delta y}
+    +
+    \frac{v_{i+1,j}-v_{i-1,j}}{2\Delta x}
+    \right)^2
+    \Bigg].
+\end{aligned}
+\label{eq:discrete_viscous_source}
+\end{equation}
+
+Equivalently, using the parameter definitions introduced in
+Section~2.2, the source term can be expressed as
+
+\begin{equation}
+    S_{ij}=\frac{Br}{Pe}\Phi_{ij}.
+\end{equation}
+
+Since the velocity field and viscous-dissipation source are
+prescribed and independent of temperature, the spatial operator
+is linear in the temperature unknowns, provided that the
+boundary conditions are linear.
+
+After incorporating the boundary conditions, the resulting
+discrete system takes the affine form
+
+\begin{equation}
+    \boxed{
+    \frac{d\mathbf{T}}{dt}
+    =\mathbf{A}\mathbf{T}+\mathbf{b},
+    }
+    \label{eq:semi_discrete_system}
+\end{equation}
+
+where $\mathbf{A}\in\mathbb{R}^{N\times N}$ is the sparse
+spatial matrix and $\mathbf{b}\in\mathbb{R}^{N}$ is the
+affine forcing vector.
+
+The matrix $\mathbf{A}$ contains the discretized convective
+and diffusive contributions. The vector $\mathbf{b}$ accounts
+for the prescribed viscous-dissipation source and constant
+contributions arising from the nonhomogeneous boundary
+conditions.
+
+The spatial matrix is assembled using a five-point stencil,
+in which each physical cell interacts with itself and its
+four immediate neighbours. After vectorization, the resulting
+matrix has a sparse structure. Its coefficients are modified
+near the boundaries to account for the elimination of ghost
+cells.
+
+For the prescribed velocity field, $u=u(y)$ and $v=0$, the
+conservative convective discretization is consistent with
+the non-conservative form used in the steady-state Galerkin
+formulation, since the discrete streamwise velocity derivative
+and wall-normal velocity derivative vanish.
+
+
+\subsection{Ghost-Cell Boundary Implementation}
+
+The boundary conditions introduced in Section~2.3 are
+implemented through one layer of ghost cells surrounding
+the physical domain. This approach allows the same central-difference
+stencils to be applied to physical cells adjacent to the
+boundaries.
+
+For a Dirichlet boundary condition, the ghost-cell temperature
+is obtained by reflecting the adjacent physical-cell temperature
+about the prescribed boundary temperature:
+
+\begin{equation}
+    \boxed{
+    T_g=2T_w-T_{\mathrm{adjacent}},
+    }
+    \label{eq:dirichlet_ghost}
+\end{equation}
+
+where $T_w$ is the prescribed wall or boundary temperature.
+
+For the inlet, bottom wall, and top wall, the corresponding
+relations are
+
+\begin{align}
+    T_{0,j}&=2y_j-T_{1,j},\\
+    T_{i,0}&=-T_{i,1},\\
+    T_{i,N_y+1}&=2-T_{i,N_y}.
+\end{align}
+
+At the outlet, the zero streamwise temperature gradient is
+implemented using a zero-gradient ghost-cell relation:
+
+\begin{equation}
+    \boxed{
+    T_{N_x+1,j}=T_{N_x,j}.
+    }
+    \label{eq:neumann_ghost}
+\end{equation}
+
+The ghost-cell values are substituted into the spatial
+finite-difference expressions and eliminated from the
+algebraic system. For Dirichlet boundaries, this substitution
+modifies the coefficients associated with the adjacent
+physical cells and introduces constant contributions into
+the forcing vector. The zero-gradient outlet condition
+modifies the corresponding boundary-row coefficients
+without introducing a prescribed-temperature contribution.
+
+Consequently, the boundary conditions are incorporated
+directly into the assembled matrix and forcing vector:
+
+\begin{equation}
+    \frac{d\mathbf{T}}{dt}
+    =
+    \mathbf{A}\mathbf{T}+\mathbf{b}.
+\end{equation}
+
+The same discrete boundary treatment is retained in the
+Galerkin reduced-order formulation, ensuring consistency
+between the full-order and reduced-order models.
+
+% Suggested figure:
+% Physical cells and ghost cells at the four boundaries.
+%
+% \begin{figure}[htbp]
+%     \centering
+%     \includegraphics[width=0.75\textwidth]
+%     {figures/ghost_cell_boundary_conditions.pdf}
+%     \caption{Ghost-cell arrangement and boundary treatment
+%     for the full-order numerical model.}
+%     \label{fig:ghost_cells}
+% \end{figure}
+
+
+\subsection{Steady-State Solution Procedure}
+
+The steady-state solution is obtained by integrating the
+semi-discrete system in pseudo-time using the fully implicit
+backward-Euler method. Applying this time discretization to
+Eq.~\eqref{eq:semi_discrete_system} gives
+
+\begin{equation}
+    \frac{
+    \mathbf{T}^{n+1}-\mathbf{T}^{n}
+    }{\Delta t}
+    =
+    \mathbf{A}\mathbf{T}^{n+1}+\mathbf{b}.
+\end{equation}
+
+Rearranging, the temperature field at the next iteration
+is obtained from
+
+\begin{equation}
+    \boxed{
+    \left(
+    \mathbf{I}-\Delta t\mathbf{A}
+    \right)\mathbf{T}^{n+1}
+    =
+    \mathbf{T}^{n}+\Delta t\mathbf{b}.
+    }
+    \label{eq:backward_euler}
+\end{equation}
+
+The numerical solution procedure consists of the following
+steps:
+
+\begin{enumerate}
+    \item Assemble the sparse spatial matrix and affine
+    forcing vector for the specified parameter combination.
+
+    \item Construct the implicit system matrix
+    $\mathbf{I}-\Delta t\mathbf{A}$.
+
+    \item Perform sparse LU factorization of the system matrix.
+
+    \item Reuse the LU factorization during subsequent
+    iterations for the same parameter combination.
+
+    \item Solve for the updated physical temperature field.
+
+    \item Update the ghost-cell values according to the
+    prescribed boundary conditions.
+
+    \item Evaluate the steady-state residual.
+
+    \item Repeat the procedure until the convergence
+    criterion is satisfied or the maximum iteration count
+    is reached.
+\end{enumerate}
+
+Since the spatial matrix and forcing vector remain constant
+during the iteration for a fixed parameter combination,
+the LU factorization can be reused. A new factorization
+is required when the governing parameters change and
+the system matrix is reconstructed.
+
+It should be noted that the time-marching procedure is
+used only as a numerical means of obtaining the steady-state
+solution. The reduced-order model developed in this work
+is based on the steady-state governing equation rather
+than the transient time-dependent system.
+
+
+\subsection{Convergence Criterion}
+
+Convergence is assessed using the root-mean-square (RMS)
+of the discrete steady-state residual. For the semi-discrete
+system, the residual at iteration $n$ is defined as
+
+\begin{equation}
+    \mathbf{R}^{n}
+    =
+    \mathbf{A}\mathbf{T}^{n}+\mathbf{b}.
+\end{equation}
+
+The corresponding RMS residual is
+
+\begin{equation}
+    \boxed{
+    R_{\mathrm{RMS}}^{n}
+    =
+    \sqrt{
+    \frac{1}{N}
+    \sum_{i=1}^{N}
+    \left(R_i^n\right)^2
+    }.
+    }
+    \label{eq:fom_residual_rms}
+\end{equation}
+
+The iteration is terminated when the residual satisfies
+
+\begin{equation}
+    R_{\mathrm{RMS}}^{n}
+    \leq \varepsilon_{\mathrm{FOM}},
+\end{equation}
+
+where $\varepsilon_{\mathrm{FOM}}$ is the prescribed
+convergence tolerance. The maximum number of iterations
+is imposed as an additional stopping condition.
+
+The steady-state residual measures how closely the
+numerical solution satisfies the discretized governing
+equation. It is distinct from the reduced-order model
+approximation error, which measures the difference
+between the full-order and reconstructed reduced-order
+temperature fields and is discussed in Section~6.
+
+
+\subsection{Numerical Settings and Implementation}
+
+The principal numerical settings of the full-order solver
+are summarized in Table~\ref{tab:fom_settings}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Numerical settings of the full-order model.}
+    \label{tab:fom_settings}
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Parameter} &
+        \textbf{Description} &
+        \textbf{Value} \\
+        \midrule
+        $N_x$ & Number of streamwise cells & 50 \\
+        $N_y$ & Number of wall-normal cells & 20 \\
+        $N$ & Number of physical unknowns & 1000 \\
+        $\Delta x$ & Streamwise grid spacing & 0.1 \\
+        $\Delta y$ & Wall-normal grid spacing & 0.05 \\
+        $\Delta t$ & Pseudo-time step & 1 \\
+        $\varepsilon_{\mathrm{FOM}}$ & RMS residual tolerance & $10^{-10}$ \\
+        $N_{\max}$ & Maximum iterations & $10^5$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The implementation of the full-order numerical solver,
+including the spatial discretization, boundary treatment,
+and solution procedure, is available in the project
+repository:
+
+\begin{center}
+    \href{
+    https://github.com/Arian-Shahnoori/CFD/tree/main/CFD_Project_03
+    }{
+    Full-order numerical solver -- GitHub repository
+    }
+\end{center}
+
+\subsection{Code implementation}
+
+The full-order solver is implemented in Python, with its main
+numerical routines contained in \texttt{src/solvers/direct.py}.
+The implementation is organized into four functions:
+
+\begin{itemize}
+    \item \texttt{build\_spatial\_matrix}: Constructs the sparse
+    five-diagonal matrix $\mathbf{A}$. It maps the two-dimensional
+    physical cell indices to the one-dimensional system indices,
+    calculates the coefficients of the five-point stencil, and
+    incorporates the ghost-cell boundary conditions into the
+    corresponding matrix coefficients.
+
+    \item \texttt{build\_rhs}: Constructs the right-hand-side
+    contribution for a single row. This function was originally
+    developed for the Alternating Plane Filling (APF) method.
+
+    \item \texttt{build\_forcing\_field}: Applies
+    \texttt{build\_rhs} across the computational domain to
+    assemble the complete forcing vector $\mathbf{b}$.
+
+    \item \texttt{solve\_with\_direct}: Assembles the spatial
+    matrix and forcing vector, factorizes
+    $(\mathbf{I}-\Delta t\mathbf{A})$ using sparse LU
+    factorization, and advances the temperature field.
+    The steady-state residual is evaluated using
+    \texttt{steady\_state\_residual\_rms} to determine
+    convergence.
+\end{itemize}
+
+This modular structure separates spatial discretization,
+forcing-term construction, and numerical solution. The same
+discrete spatial formulation is subsequently used to construct
+the Galerkin reduced-order model.

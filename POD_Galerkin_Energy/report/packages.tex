@@ -1,0 +1,126 @@
+%================================================
+% Page layout
+%================================================
+
+\usepackage[
+    a4paper,
+    margin=2.5cm
+]{geometry}
+
+%================================================
+% Mathematics
+%================================================
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{bm}
+
+%================================================
+% Figures and tables
+%================================================
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{tabularx}
+
+%================================================
+% Fonts and typography
+%================================================
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+
+\usepackage{setspace}
+\setstretch{1.1}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6em}
+
+%================================================
+% Section formatting
+%================================================
+
+\usepackage{titlesec}
+
+\titleformat{\section}
+{\Large\bfseries}
+{\thesection.}
+{0.6em}
+{}
+
+\titleformat{\subsection}
+{\large\bfseries}
+{\thesubsection}
+{0.6em}
+{}
+
+\titlespacing*{\section}
+{0pt}{18pt}{10pt}
+
+\titlespacing*{\subsection}
+{0pt}{12pt}{6pt}
+
+%================================================
+% Hyperlinks
+%================================================
+
+\usepackage[
+colorlinks=true,
+linkcolor=blue,
+citecolor=blue,
+urlcolor=blue
+]{hyperref}
+
+%================================================
+% Header and footer
+%================================================
+
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+
+\fancyhf{}
+
+\fancyhead[L]{CFD Portfolio}
+\fancyhead[R]{Project 01}
+
+\fancyfoot[C]{\thepage}
+
+\renewcommand{\headrulewidth}{0.4pt}
+
+\setlength{\headheight}{25pt}
+\setlength{\headsep}{25pt}
+
+%================================================
+% Lists
+%================================================
+
+\usepackage{enumitem}
+
+\setlist{
+itemsep=3pt,
+topsep=5pt
+}
+
+%================================================
+% Figure captions
+%================================================
+
+\captionsetup{
+font=small,
+labelfont=bf
+}
+\renewcommand{\arraystretch}{0.9}
+\setlength{\abovecaptionskip}{4pt}
+\setlength{\belowcaptionskip}{4pt}
+\setlength{\intextsep}{8pt}
+
+%================================================
+% Table spacing
+%================================================
+
+\renewcommand{\arraystretch}{1.25}

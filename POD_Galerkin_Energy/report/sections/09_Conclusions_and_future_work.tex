@@ -1,0 +1,60 @@
+\section{Conclusions and Future Work}
+\label{sec:conclusions}
+
+\subsection{Conclusions}
+
+A discrete Galerkin--POD reduced-order model was developed
+for the parameterized steady-state energy equation. The
+full-order model was used to generate temperature
+snapshots, from which an original POD basis was
+constructed. The discretized governing equation was
+then projected onto the retained modes to obtain a
+reduced system for calculating the modal coefficients.
+
+The original basis was assessed using 100 independent
+LHS samples and different retained mode counts.
+Increasing the number of modes substantially reduced
+the prediction errors. The mean relative $L_2$ error
+decreased from 39.56\% with one mode to 0.0468\%
+with ten modes.
+
+An adaptive snapshot-enrichment procedure was
+subsequently developed. Three high-error parameter
+regions were selected, and 15 additional full-order
+snapshots were generated around them. These snapshots
+were combined with the original 100 snapshots to
+construct an augmented POD basis.
+
+The final comparison used 100 test cases excluded
+from both POD training datasets. The results showed
+that enrichment did not improve the ROM uniformly.
+At two to five modes, the mean relative error
+increased. At six, eight, and ten modes, it decreased
+by 40.77\%, 83.91\%, and 96.98\%, respectively.
+At ten modes, the maximum relative error also
+decreased by 96.92\%. However, only 20\% of the
+individual test cases improved at this mode count.
+
+These findings indicate that targeted snapshot
+enrichment can substantially reduce large prediction
+errors at higher basis dimensions, but may degrade
+accuracy for other parameter combinations. Its
+effect therefore depends on both the retained
+basis dimension and the location within the
+parameter domain.
+
+\subsection{Future Work}
+
+Future work can investigate alternative hotspot
+selection criteria and parameter-space sampling
+strategies to improve the distribution of prediction
+errors. Different enrichment rules and mode-dependent
+basis construction could also be examined to obtain
+more consistent improvements across test cases.
+
+The evaluation could be extended to larger independent
+test datasets to further assess generalization.
+Finally, precomputing and storing reusable reduced
+operators would improve the offline-online structure
+of the implementation and provide a more complete
+assessment of its computational efficiency.

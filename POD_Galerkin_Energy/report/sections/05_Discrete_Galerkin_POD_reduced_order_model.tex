@@ -1,0 +1,960 @@
+\section{Discrete Galerkin--POD Reduced-Order Model}
+\label{sec:discrete_galerkin_rom}
+
+The POD basis constructed in the previous section provides a
+reduced spatial representation of the temperature-deviation
+field. To obtain temperature predictions at different parameter
+combinations, the governing energy equation is projected onto
+this basis. Unlike direct POD reconstruction, this procedure
+determines the modal coefficients from the governing equations.
+
+The present implementation uses the discrete spatial operators
+of the full-order model (FOM). Consequently, the reduced-order
+model (ROM) retains the spatial discretization and boundary
+treatment of the original solver. This section describes the
+operator decomposition, discrete lifting, Galerkin projection,
+solution of the reduced system, and comparison with the
+full-order solutions.
+
+\subsection{Decomposition of the full-order spatial operator}
+
+The spatially discretized full-order equation can be expressed
+in semi-discrete form as
+\begin{equation}
+    \frac{\mathrm{d}\mathbf{T}}{\mathrm{d}t}
+    =
+    c\mathbf{C}_h\mathbf{T}
+    +\frac{1}{Pe}\mathbf{L}_h\mathbf{T}
+    +\frac{Br}{Pe}\boldsymbol{\Phi}_h
+    +\mathbf{b}_{\mathrm{boundary}},
+    \label{eq:fom_operator_decomposition}
+\end{equation}
+where $\mathbf{T}$ is the vector of physical temperature
+unknowns. The spatial operator is decomposed as
+\begin{equation}
+    \boxed{
+    \mathbf{A}
+    =
+    c\mathbf{C}_h+\frac{1}{Pe}\mathbf{L}_h.
+    }
+    \label{eq:full_order_operator}
+\end{equation}
+
+Here, $\mathbf{C}_h$ and $\mathbf{L}_h$ represent the discrete
+convection and diffusion operators, respectively. The
+convection operator includes the negative signs associated
+with the convection terms on the right-hand side of the
+semi-discrete full-order equation. The diffusion operator
+represents the discrete Laplacian.
+
+Using the central-difference stencils of the full-order solver,
+the convection operator is defined component-wise as
+\begin{align}
+    (\mathbf{C}_h\mathbf{T})_{ij}
+    ={}&
+    -\frac{
+    u_{i+1,j}T_{i+1,j}
+    -u_{i-1,j}T_{i-1,j}
+    }{2\Delta x}
+    \nonumber\\
+    &-
+    \frac{
+    v_{i,j+1}T_{i,j+1}
+    -v_{i,j-1}T_{i,j-1}
+    }{2\Delta y}.
+    \label{eq:discrete_convection_operator}
+\end{align}
+
+The discrete diffusion operator is
+\begin{align}
+    (\mathbf{L}_h\mathbf{T})_{ij}
+    ={}&
+    \frac{
+    T_{i+1,j}-2T_{i,j}+T_{i-1,j}
+    }{\Delta x^2}
+    \nonumber\\
+    &+
+    \frac{
+    T_{i,j+1}-2T_{i,j}+T_{i,j-1}
+    }{\Delta y^2}.
+    \label{eq:discrete_diffusion_operator}
+\end{align}
+
+Both operators are linear in temperature because the velocity
+field is prescribed and does not depend on the temperature
+solution. Their matrix representations are obtained from the
+spatial stencils and index mapping used by the existing
+full-order matrix assembler. The convection and diffusion
+contributions are separated according to their respective
+coefficients, $c$ and $1/Pe$.
+
+The ghost-cell boundary treatment is retained when constructing
+the operator matrices. Substitution of the ghost-cell relations
+modifies the coefficients associated with the physical
+unknowns. The affine boundary contributions are collected
+separately in $\mathbf{b}_{\mathrm{boundary}}$. Thus, the
+discrete operators and boundary forcing are based on the same
+spatial formulation as the original full-order solver.
+
+The viscous-dissipation contribution is represented by the
+vector
+\[
+\boldsymbol{\Phi}_h\in\mathbb{R}^{N},
+\qquad N=N_xN_y.
+\]
+Its components are evaluated using the discrete velocity
+derivatives:
+\begin{align}
+    \Phi_{ij}={}&
+    2\left(
+    \frac{u_{i+1,j}-u_{i-1,j}}{2\Delta x}
+    \right)^2
+    \nonumber\\
+    &+
+    2\left(
+    \frac{v_{i,j+1}-v_{i,j-1}}{2\Delta y}
+    \right)^2
+    \nonumber\\
+    &+
+    \left(
+    \frac{u_{i,j+1}-u_{i,j-1}}{2\Delta y}
+    +
+    \frac{v_{i+1,j}-v_{i-1,j}}{2\Delta x}
+    \right)^2.
+    \label{eq:discrete_dissipation}
+\end{align}
+The resulting two-dimensional field is flattened using the
+same indexing convention as the temperature field.
+
+For the prescribed velocity profile
+\[
+u(y)=18y(1-y),\qquad v=0,
+\]
+the continuous dissipation function is
+\[
+\Phi(y)=324(1-2y)^2.
+\]
+Since the velocity field and computational grid are fixed,
+the discrete dissipation vector is independent of the
+parameters $\mu$ and $Br$.
+
+\subsection{Discrete lifting residual and boundary contributions}
+
+The non-homogeneous temperature boundary conditions are
+handled through the reference-temperature transformation:
+\begin{equation}
+    \boxed{
+    \mathbf{T}
+    =
+    \mathbf{T}_{\mathrm{ref}}+\boldsymbol{\theta}.
+    }
+    \label{eq:discrete_lifting}
+\end{equation}
+Here, $\mathbf{T}_{\mathrm{ref}}$ is the discrete representation
+of $T_{\mathrm{ref}}(y)=y$, and $\boldsymbol{\theta}$ is the
+temperature-deviation vector.
+
+Substituting this decomposition into the full-order
+semi-discrete equation gives
+\begin{align}
+    \frac{\mathrm{d}\boldsymbol{\theta}}{\mathrm{d}t}
+    ={}&
+    c\mathbf{C}_h\boldsymbol{\theta}
+    +\frac{1}{Pe}\mathbf{L}_h\boldsymbol{\theta}
+    +\frac{Br}{Pe}\boldsymbol{\Phi}_h
+    +\mathbf{g}_{\mathrm{lift}},
+    \label{eq:lifted_discrete_equation}
+\end{align}
+where the discrete lifting residual is defined as
+\begin{equation}
+    \boxed{
+    \mathbf{g}_{\mathrm{lift}}
+    =
+    \mathbf{A}\mathbf{T}_{\mathrm{ref}}
+    +\mathbf{b}_{\mathrm{boundary}}.
+    }
+    \label{eq:discrete_lifting_residual}
+\end{equation}
+
+This term accounts for the contribution of the reference
+temperature when it is substituted into the discrete
+full-order equation. It includes both the action of the
+discrete spatial operators on the reference field and the
+affine contributions introduced by the boundary closures.
+In general, it must be retained unless its value has been
+established for the actual discrete implementation.
+
+The lifting residual cannot be determined solely from the
+continuous differential equation. Although the continuous
+reference profile $T_{\mathrm{ref}}=y$ has zero second
+derivatives and no streamwise variation, the discrete
+residual also depends on how the boundary conditions are
+implemented. In particular, ghost-cell elimination changes
+the discrete matrix coefficients and introduces affine
+forcing terms. Therefore, the lifting residual must be
+evaluated using the actual discrete operators and boundary
+closures of the full-order solver.
+
+Two equivalent approaches can be used to evaluate this
+residual.
+
+\paragraph{Direct evaluation using the reference field.}
+
+In the first approach, the transport and diffusion terms
+are evaluated directly using $\mathbf{T}_{\mathrm{ref}}$.
+The ghost-cell values are assigned according to the original
+boundary conditions before applying the discrete stencils.
+For a Dirichlet boundary, the ghost-cell temperature is
+calculated as
+\[
+T_g=2T_w-T_{\mathrm{adjacent}},
+\]
+where $T_w$ is the prescribed wall or inlet temperature.
+For the outlet Neumann condition, the ghost-cell value is
+\[
+T_g=T_{\mathrm{adjacent}}.
+\]
+The resulting discrete operator contributions give
+\begin{equation}
+    \mathbf{g}_{\mathrm{lift}}^{\mathrm{direct}}
+    =
+    c\,\mathcal{C}_h^{\mathrm{ghost}}
+    (\mathbf{T}_{\mathrm{ref}})
+    +
+    \frac{1}{Pe}
+    \mathcal{L}_h^{\mathrm{ghost}}
+    (\mathbf{T}_{\mathrm{ref}}),
+    \label{eq:direct_lifting_evaluation}
+\end{equation}
+where the superscript indicates that the operators are
+evaluated using the prescribed ghost-cell values. This
+approach directly applies the discrete stencils to the
+reference field and includes the boundary contributions.
+
+\paragraph{Evaluation using the full-order matrix and boundary forcing.}
+
+In the second approach, the residual is calculated from
+the assembled spatial matrix:
+\begin{equation}
+    \boxed{
+    \mathbf{g}_{\mathrm{lift}}^{\mathrm{matrix}}
+    =
+    \mathbf{A}\mathbf{T}_{\mathrm{ref}}
+    +\mathbf{b}_{\mathrm{boundary}}.
+    }
+    \label{eq:matrix_lifting_evaluation}
+\end{equation}
+
+The affine boundary forcing is obtained separately by
+applying the ghost-cell boundary conditions to a zero
+physical temperature vector. Since the physical values
+are zero in this calculation, a Dirichlet ghost cell
+becomes $T_g=2T_w$, whereas an outlet Neumann ghost cell
+remains zero. These contributions isolate the constant
+terms introduced by the non-homogeneous boundary
+conditions. They are collected in
+$\mathbf{b}_{\mathrm{boundary}}$.
+
+The matrix-based expression therefore combines the action
+of the assembled spatial matrix on the reference field
+with the affine boundary forcing. Both contributions are
+necessary to reproduce the direct evaluation.
+
+The consistency of the operator decomposition can be
+examined by comparing the assembled spatial matrix with
+the sum of its components:
+\begin{equation}
+    \boxed{
+    \mathbf{A}
+    \approx
+    c\mathbf{C}_h+\frac{1}{Pe}\mathbf{L}_h.
+    }
+    \label{eq:operator_verification}
+\end{equation}
+Likewise, the two lifting-residual evaluations can be
+compared through
+\begin{equation}
+    \boxed{
+    \mathbf{g}_{\mathrm{lift}}^{\mathrm{direct}}
+    \approx
+    \mathbf{A}\mathbf{T}_{\mathrm{ref}}
+    +\mathbf{b}_{\mathrm{boundary}}.
+    }
+    \label{eq:lifting_verification}
+\end{equation}
+
+For the present problem, the reference field is linear
+in the wall-normal coordinate and independent of the
+streamwise coordinate. The prescribed velocity is also
+independent of $x$, with $v=0$. Consequently, the interior
+convection and diffusion stencils are expected to give
+zero contributions when applied to the reference field.
+If the ghost-cell closures preserve this reference
+profile, the complete lifting residual is also expected
+to be zero. The reduced formulation nevertheless retains
+the general lifting term until its contribution is
+established for the discrete implementation.
+
+\subsection{Galerkin projection onto the POD basis}
+
+The temperature-deviation field is approximated using the
+$r$ retained POD modes:
+\begin{equation}
+    \boxed{
+    \boldsymbol{\theta}\approx\mathbf{V}_r\mathbf{a},
+    }
+    \label{eq:rom_approximation}
+\end{equation}
+where
+\[
+\mathbf{V}_r\in\mathbb{R}^{N\times r},
+\qquad
+\mathbf{a}\in\mathbb{R}^{r}.
+\]
+The columns of $\mathbf{V}_r$ are the retained spatial POD
+modes, and $\mathbf{a}$ contains their modal coefficients.
+The reconstructed temperature field is consequently
+\[
+\mathbf{T}\approx
+\mathbf{T}_{\mathrm{ref}}+\mathbf{V}_r\mathbf{a}.
+\]
+
+Since the POD modes are obtained from the left singular
+vectors of the snapshot matrix, they satisfy the
+orthogonality condition
+\begin{equation}
+    \boxed{
+    \mathbf{V}_r^T\mathbf{V}_r=\mathbf{I}_r.
+    }
+    \label{eq:pod_orthogonality}
+\end{equation}
+The present implementation uses a uniform Cartesian grid
+and the ordinary Euclidean POD inner product.
+
+Substituting the reduced approximation into
+Eq.~\eqref{eq:lifted_discrete_equation} gives
+\begin{align}
+    \mathbf{V}_r\dot{\mathbf{a}}
+    ={}&
+    c\mathbf{C}_h\mathbf{V}_r\mathbf{a}
+    +\frac{1}{Pe}\mathbf{L}_h\mathbf{V}_r\mathbf{a}
+    \nonumber\\
+    &+
+    \frac{Br}{Pe}\boldsymbol{\Phi}_h
+    +\mathbf{g}_{\mathrm{lift}}.
+\end{align}
+Multiplying from the left by $\mathbf{V}_r^T$ and using
+Eq.~\eqref{eq:pod_orthogonality} yields the reduced
+equation. Define the projected operators as
+\begin{align}
+    \mathbf{C}_r
+    &=
+    \mathbf{V}_r^T\mathbf{C}_h\mathbf{V}_r,
+    \label{eq:reduced_convection}
+    \\
+    \mathbf{L}_r
+    &=
+    \mathbf{V}_r^T\mathbf{L}_h\mathbf{V}_r,
+    \label{eq:reduced_diffusion}
+    \\
+    \boldsymbol{\Phi}_r
+    &=
+    \mathbf{V}_r^T\boldsymbol{\Phi}_h,
+    \label{eq:reduced_dissipation}
+    \\
+    \mathbf{g}_r
+    &=
+    \mathbf{V}_r^T\mathbf{g}_{\mathrm{lift}}.
+    \label{eq:reduced_lifting}
+\end{align}
+
+The reduced convection and diffusion matrices describe
+the action of the full-order spatial operators within the
+retained POD subspace. The vectors
+$\boldsymbol{\Phi}_r$ and $\mathbf{g}_r$ represent the
+projections of the viscous-dissipation source and the
+lifting residual onto that same subspace.
+
+The dimensions of the full-order and reduced quantities
+are summarized in Table~\ref{tab:galerkin_dimensions}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Dimensions of the full-order and reduced
+    Galerkin operators.}
+    \label{tab:galerkin_dimensions}
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Quantity} &
+        \textbf{Dimensions} &
+        \textbf{Description} \\
+        \midrule
+        $\mathbf{C}_h$ &
+        $N\times N$ &
+        Full-order convection matrix \\
+        $\mathbf{L}_h$ &
+        $N\times N$ &
+        Full-order diffusion matrix \\
+        $\boldsymbol{\Phi}_h$ &
+        $N\times 1$ &
+        Full-order dissipation vector \\
+        $\mathbf{g}_{\mathrm{lift}}$ &
+        $N\times 1$ &
+        Full-order lifting residual \\
+        $\mathbf{V}_r$ &
+        $N\times r$ &
+        Retained POD basis \\
+        $\mathbf{C}_r$ &
+        $r\times r$ &
+        Reduced convection matrix \\
+        $\mathbf{L}_r$ &
+        $r\times r$ &
+        Reduced diffusion matrix \\
+        $\boldsymbol{\Phi}_r$ &
+        $r\times 1$ &
+        Reduced dissipation vector \\
+        $\mathbf{g}_r$ &
+        $r\times 1$ &
+        Reduced lifting residual \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+For the present grid, $N=N_xN_y=1000$. Thus, the
+full-order operators act on 1000 physical degrees of
+freedom, whereas the reduced operators act only on the
+$r$ retained modal coefficients.
+
+The resulting reduced semi-discrete equation is
+\begin{equation}
+    \boxed{
+    \frac{\mathrm{d}\mathbf{a}}{\mathrm{d}t}
+    =
+    c\mathbf{C}_r\mathbf{a}
+    +\frac{1}{Pe}\mathbf{L}_r\mathbf{a}
+    +\frac{Br}{Pe}\boldsymbol{\Phi}_r
+    +\mathbf{g}_r.
+    }
+    \label{eq:reduced_transient_equation}
+\end{equation}
+
+\subsection{Steady reduced-order system}
+
+The objective is to calculate steady-state temperature
+fields. Accordingly, the steady-state condition is applied
+to the reduced equation:
+\[
+\frac{\mathrm{d}\mathbf{a}}{\mathrm{d}t}=\mathbf{0}.
+\]
+Setting Eq.~\eqref{eq:reduced_transient_equation} to zero
+and multiplying by $Pe$ gives
+\begin{equation}
+    cPe\mathbf{C}_r\mathbf{a}
+    +\mathbf{L}_r\mathbf{a}
+    +Br\boldsymbol{\Phi}_r
+    +Pe\mathbf{g}_r
+    =\mathbf{0}.
+\end{equation}
+Rearranging, the general steady reduced-order system is
+\begin{equation}
+    \boxed{
+    (cPe\mathbf{C}_r+\mathbf{L}_r)\mathbf{a}
+    =
+    -Br\boldsymbol{\Phi}_r-Pe\mathbf{g}_r.
+    }
+    \label{eq:steady_rom_general}
+\end{equation}
+
+For the present parameter study, the convection
+coefficient is fixed at $c=1$. The effective parameter is
+therefore $\mu=cPe=Pe$, and the reduced system becomes
+\begin{equation}
+    \boxed{
+    (\mu\mathbf{C}_r+\mathbf{L}_r)\mathbf{a}
+    =
+    -Br\boldsymbol{\Phi}_r-Pe\mathbf{g}_r.
+    }
+    \label{eq:steady_rom_mu}
+\end{equation}
+
+If the discrete lifting residual is negligible, its
+contribution can be omitted. In that case, the reduced
+system simplifies to
+\begin{equation}
+    \boxed{
+    (\mu\mathbf{C}_r+\mathbf{L}_r)\mathbf{a}
+    =
+    -Br\boldsymbol{\Phi}_r.
+    }
+    \label{eq:steady_rom_simplified}
+\end{equation}
+
+The signs in these equations follow directly from the
+semi-discrete full-order formulation. In particular,
+$\mathbf{C}_h$ contains the negative convection terms
+on the right-hand side of the full-order equation, while
+$\mathbf{L}_h$ is the discrete Laplacian. The resulting
+steady reduced system therefore has the negative
+viscous-dissipation contribution on its right-hand side.
+
+These definitions must be distinguished from the
+continuous weak-form formulation introduced earlier.
+There, integration by parts produces a positive
+diffusion stiffness matrix, conventionally denoted by
+$\mathbf{K}$, and a differently signed convection
+matrix. The matrices used in the present implementation
+are obtained by projecting the discrete right-hand-side
+operators of the full-order solver. The continuous
+weak-form matrices must therefore not be substituted
+directly into Eqs.~\eqref{eq:steady_rom_general}--\eqref{eq:steady_rom_simplified}.
+
+\subsection{Reduced system solution and temperature reconstruction}
+
+For a specified parameter combination, the reduced
+system is assembled in matrix form as
+\begin{equation}
+    \boxed{
+    \mathbf{A}_r
+    =
+    cPe\mathbf{C}_r+\mathbf{L}_r,
+    }
+    \label{eq:rom_system_matrix}
+\end{equation}
+and
+\begin{equation}
+    \boxed{
+    \mathbf{b}_r
+    =
+    -Br\boldsymbol{\Phi}_r-Pe\mathbf{g}_r.
+    }
+    \label{eq:rom_system_rhs}
+\end{equation}
+The modal coefficient vector is obtained by solving
+\begin{equation}
+    \boxed{
+    \mathbf{A}_r\mathbf{a}=\mathbf{b}_r.
+    }
+    \label{eq:rom_linear_system}
+\end{equation}
+This is an $r\times r$ linear system, compared with the
+$N\times N$ full-order spatial system.
+
+After calculating the modal coefficients, the
+temperature-deviation field is reconstructed using the
+retained POD basis:
+\[
+\boldsymbol{\theta}_{\mathrm{ROM}}
+=
+\mathbf{V}_r\mathbf{a}.
+\]
+The complete reduced-order temperature field is
+therefore
+\begin{equation}
+    \boxed{
+    \mathbf{T}_{\mathrm{ROM}}
+    =
+    \mathbf{T}_{\mathrm{ref}}
+    +\mathbf{V}_r\mathbf{a}.
+    }
+    \label{eq:rom_temperature_reconstruction}
+\end{equation}
+The reconstructed vector is then reshaped into the
+two-dimensional computational field using the same
+spatial indexing convention as the full-order solver.
+
+Two numerical diagnostics are used to assess the
+reduced linear solve.
+
+First, the algebraic residual is defined as
+\begin{equation}
+    \boxed{
+    \mathbf{r}_{\mathrm{ROM}}
+    =
+    \mathbf{A}_r\mathbf{a}-\mathbf{b}_r.
+    }
+    \label{eq:rom_algebraic_residual}
+\end{equation}
+Its norm measures how closely the computed modal
+coefficients satisfy the reduced linear system. A small
+residual indicates that the reduced equations have been
+solved accurately. This is a numerical solution
+diagnostic; it is not a measure of the approximation
+error relative to the full-order temperature field.
+
+Second, the condition number of the reduced system
+matrix is evaluated. Using the matrix 2-norm, it is
+defined as
+\begin{equation}
+    \boxed{
+    \kappa_2(\mathbf{A}_r)
+    =
+    \|\mathbf{A}_r\|_2
+    \|\mathbf{A}_r^{-1}\|_2
+    =
+    \frac{\sigma_{\max}(\mathbf{A}_r)}
+    {\sigma_{\min}(\mathbf{A}_r)}.
+    }
+    \label{eq:rom_condition_number}
+\end{equation}
+The condition number indicates the sensitivity of the
+reduced linear system to perturbations in its
+coefficients and right-hand side. A large value
+indicates a more poorly conditioned system and greater
+potential sensitivity to numerical errors. It does not,
+by itself, indicate whether the POD approximation is
+accurate.
+
+The algebraic residual and condition number therefore
+provide information about the numerical solution of
+the reduced system. The accuracy of the ROM approximation
+must be assessed separately by comparing reconstructed
+temperature fields against full-order solutions.
+
+\subsection{ROM comparison with full-order solutions}
+
+The ROM temperature field is evaluated against the
+corresponding full-order solution to assess the accuracy
+of the reduced representation. For each evaluated case,
+the relative $L_2$ error, root-mean-square error (RMSE),
+and maximum absolute error are recorded. The aggregate
+results for the 100 successfully evaluated cases are
+summarized in Table~\ref{tab:rom_validation_errors}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Aggregate ROM errors over 100 evaluated cases.}
+    \label{tab:rom_validation_errors}
+    \begin{tabular}{lc}
+        \toprule
+        \textbf{Error metric} & \textbf{Value} \\
+        \midrule
+        Number of successful cases & 100 \\
+        Mean relative $L_2$ error & $2.401402\times10^{-2}$ \\
+        Median relative $L_2$ error & $1.705007\times10^{-2}$ \\
+        Maximum relative $L_2$ error & $1.262083\times10^{-1}$ \\
+        Mean RMSE & $6.498504\times10^{-2}$ \\
+        Mean maximum absolute error & $1.353265\times10^{-1}$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The mean relative $L_2$ error across the evaluated cases
+is approximately $2.40\%$, while the median is
+approximately $1.71\%$. The maximum relative $L_2$ error
+is approximately $12.62\%$. The difference between the
+mean and median indicates that the error distribution
+includes cases with substantially larger errors than
+the typical case.
+
+The cases with the smallest and largest relative
+$L_2$ errors are reported in
+Table~\ref{tab:rom_error_extremes}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Cases with the minimum and maximum relative
+    $L_2$ errors.}
+    \label{tab:rom_error_extremes}
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Case} &
+        \textbf{Relative $L_2$ error} &
+        \textbf{Result} \\
+        \midrule
+        \texttt{train\_0001} &
+        $7.040618\times10^{-6}$ &
+        Minimum error \\
+        \texttt{train\_0020} &
+        $1.262083\times10^{-1}$ &
+        Maximum error \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The results show that the ROM accuracy varies across the
+evaluated parameter combinations. In particular, the
+maximum-error case has a considerably larger error than
+the mean and median values. Therefore, the aggregate
+statistics should be considered together with the
+case-wise errors when assessing the reduced model.
+
+\subsection{Computational procedure}
+
+The implementation follows the sequence below for a
+specified parameter combination:
+
+\begin{enumerate}
+    \item Load the retained POD basis
+    $\mathbf{V}_r$ and the reference temperature vector
+    $\mathbf{T}_{\mathrm{ref}}$.
+
+    \item Construct the full-order convection matrix
+    $\mathbf{C}_h$, diffusion matrix $\mathbf{L}_h$,
+    and viscous-dissipation vector
+    $\boldsymbol{\Phi}_h$ using the spatial discretization
+    and boundary treatment of the original solver.
+
+    \item Construct the boundary forcing and evaluate
+    the discrete lifting residual.
+
+    \item Project the full-order operators and source
+    terms onto the retained POD basis to obtain
+    $\mathbf{C}_r$, $\mathbf{L}_r$,
+    $\boldsymbol{\Phi}_r$, and $\mathbf{g}_r$.
+
+    \item Assemble the reduced matrix
+    $\mathbf{A}_r$ and right-hand-side vector
+    $\mathbf{b}_r$ for the specified parameters.
+
+    \item Solve the reduced linear system for the modal
+    coefficient vector $\mathbf{a}$.
+
+    \item Reconstruct the full temperature field using
+    $\mathbf{T}_{\mathrm{ROM}}=
+    \mathbf{T}_{\mathrm{ref}}+\mathbf{V}_r\mathbf{a}$.
+
+    \item For comparison cases, evaluate the ROM error
+    against the corresponding full-order solution.
+\end{enumerate}
+
+The main computational stages can be summarized as
+\[
+\boxed{
+\begin{gathered}
+\text{POD basis and reference field}\\
+\downarrow\\
+\text{Full-order operator components and boundary terms}\\
+\downarrow\\
+\text{Galerkin projection}\\
+\downarrow\\
+\text{Reduced system assembly}\\
+\downarrow\\
+\text{Solution for modal coefficients}\\
+\downarrow\\
+\text{Temperature reconstruction}\\
+\downarrow\\
+\text{Full-order comparison}
+\end{gathered}
+}
+\]
+
+From a computational perspective, this procedure has a
+potential offline-online structure. For a fixed
+computational grid and prescribed velocity field,
+$\mathbf{C}_h$, $\mathbf{L}_h$, and
+$\boldsymbol{\Phi}_h$ are independent of the parameter
+values. Their reduced projections can therefore be
+constructed once and reused for different parameter
+combinations. The parameter dependence then enters
+through the coefficients multiplying the reduced
+operators and through the reduced right-hand side.
+
+However, the current implementation does not yet use
+a completely precomputed offline-online workflow.
+The evaluation scripts reconstruct the full-order
+operator components for individual parameter cases
+before carrying out the reduced projection and solving
+the reduced system. Thus, although the operator
+decomposition identifies quantities that are reusable
+for a fixed grid and velocity field, the current
+implementation still repeats part of the full-order
+operator construction during parameter evaluation.
+
+\subsection{Code implementation}
+\label{subsec:rom_code_implementation}
+
+The Galerkin--POD reduced-order model is implemented in the
+\texttt{F04\_galerkin\_rom} directory. The implementation is
+organized into five Python scripts, each responsible for a
+specific stage of the reduced-order calculation, from
+full-order operator construction to parameter-case evaluation.
+
+\begin{itemize}
+
+    \item \texttt{f01\_operators.py}: Constructs the full-order
+    operator components and source terms required for the
+    Galerkin projection. Its main functions are:
+
+    \begin{itemize}
+        \item \texttt{\_assemble\_spatial\_matrix}: Builds the
+        full-order spatial matrix using the existing spatial
+        discretization and boundary treatment.
+
+        \item \texttt{build\_linear\_operators}: Separates the
+        convection and diffusion contributions from the
+        assembled spatial matrix. The resulting operators
+        satisfy
+        \[
+            \mathbf{A}
+            =
+            c\mathbf{C}_h+\frac{1}{Pe}\mathbf{L}_h.
+        \]
+        The diffusion operator is obtained by assembling
+        the spatial matrix with $c=0$ and $Pe=1$. The
+        unit-coefficient operator is
+        \[
+            \mathbf{A}_{\mathrm{unit}}
+            =
+            \mathbf{C}_h+\mathbf{L}_h,
+        \]
+        corresponding to $c=1$ and $Pe=1$.
+
+        \item \texttt{build\_viscous\_dissipation\_source}:
+        Calculates the parameter-independent viscous-dissipation
+        vector $\boldsymbol{\Phi}_h$ from the prescribed
+        velocity field and its discrete derivatives.
+
+        \item \texttt{build\_lifting\_residual}: Calculates
+        the discrete lifting residual
+        \[
+            \mathbf{g}_{\mathrm{lift}}
+            =
+            \mathbf{A}\mathbf{T}_{\mathrm{ref}}
+            +\mathbf{b}_{\mathrm{boundary}}.
+        \]
+        This accounts for the contribution of the reference
+        temperature and the affine boundary forcing.
+
+        \item \texttt{\_assemble\_forcing\_field}: Constructs
+        the forcing vector associated with the equation
+        \[
+            \frac{\mathrm{d}\boldsymbol{\theta}}{\mathrm{d}t}
+            =
+            \mathbf{A}\boldsymbol{\theta}+\mathbf{b}.
+        \]
+        It reuses the \texttt{build\_forcing\_field} routine
+        from the direct full-order solver.
+
+        \item \texttt{verify\_operator\_decomposition}:
+        Provides checks for the operator decomposition and
+        the matrix-based expression of the lifting residual.
+
+        \item \texttt{build\_operator\_components}: Collects
+        the operator matrices, viscous-dissipation source,
+        and lifting contribution. It is the main interface
+        for constructing the full-order components required
+        by the reduced model.
+    \end{itemize}
+
+    \item \texttt{f02\_reduced\_operators.py}: Projects the
+    full-order operators and source terms onto the retained
+    POD basis. For a basis $\mathbf{V}_r$, the reduced
+    quantities are calculated as
+    \begin{align*}
+        \mathbf{C}_r
+        &=\mathbf{V}_r^T\mathbf{C}_h\mathbf{V}_r,\\
+        \mathbf{L}_r
+        &=\mathbf{V}_r^T\mathbf{L}_h\mathbf{V}_r,\\
+        \boldsymbol{\Phi}_r
+        &=\mathbf{V}_r^T\boldsymbol{\Phi}_h,\\
+        \mathbf{g}_r
+        &=\mathbf{V}_r^T\mathbf{g}_{\mathrm{lift}}.
+    \end{align*}
+    These reduced matrices and vectors are subsequently
+    used to assemble the parameter-dependent reduced system.
+
+    \item \texttt{f03\_solve\_reduced.py}: Handles the
+    construction and solution of the reduced linear system,
+    as well as temperature reconstruction. Its main functions
+    are:
+
+    \begin{itemize}
+        \item \texttt{construct\_reduced\_system}: Assembles
+        the reduced matrix and right-hand-side vector:
+        \[
+            \mathbf{A}_r
+            =
+            cPe\mathbf{C}_r+\mathbf{L}_r,
+        \]
+        \[
+            \mathbf{b}_r
+            =
+            -Br\boldsymbol{\Phi}_r-Pe\mathbf{g}_r.
+        \]
+        It returns the reduced system
+        $\mathbf{A}_r\mathbf{a}=\mathbf{b}_r$.
+
+        \item \texttt{solve\_reduced\_system}: Solves the
+        reduced linear system for the modal coefficient
+        vector $\mathbf{a}$ and returns the solution
+        together with the reduced-system residual.
+
+        \item \texttt{reconstruct\_temperature}: Uses the
+        calculated modal coefficients to reconstruct the
+        temperature field:
+        \[
+            \boldsymbol{\theta}_{\mathrm{ROM}}
+            =\mathbf{V}_r\mathbf{a},
+        \]
+        \[
+            \mathbf{T}_{\mathrm{ROM}}
+            =
+            \mathbf{T}_{\mathrm{ref}}
+            +\boldsymbol{\theta}_{\mathrm{ROM}}.
+        \]
+
+        \item \texttt{run\_reduced\_model}: Coordinates the
+        reduced-order calculation for a specified number of
+        POD modes and parameter combination. It invokes the
+        reduced-system construction, solution, and
+        reconstruction routines, and saves the modal
+        coefficients, reduced system, and reconstructed
+        temperature field.
+    \end{itemize}
+
+    \item \texttt{f04\_rom\_for\_case.py}: Provides the
+    case-level evaluation of the reduced-order model. Its
+    main function, \texttt{run\_rom\_for\_case}, processes
+    the specified cases and retained POD rank. For each
+    case, the following operations are performed:
+
+    \begin{enumerate}
+        \item The full-order temperature field is computed
+        using \texttt{run\_fom\_case}, which calls
+        \texttt{solve\_with\_direct}.
+
+        \item The reduced-order solution is computed using
+        \texttt{run\_rom\_case}. This involves constructing
+        the full-order operator components, projecting them
+        onto the POD basis, assembling and solving the
+        reduced system, and reconstructing the temperature
+        field.
+
+        \item The reconstructed ROM field is compared with
+        the corresponding full-order temperature field to
+        calculate the error metrics.
+
+        \item The case results and reconstructed temperature
+        field are saved, and the case information is added
+        to the overall results summary.
+    \end{enumerate}
+
+    After processing the cases, the script saves the
+    aggregated case records in a CSV file. It also identifies
+    the cases with the minimum and maximum relative
+    $L_2$ errors and generates comparison plots for these
+    two cases.
+
+    \item \texttt{f05\_test\_rom.py}: Generates a parameter
+    grid over the prescribed parameter domain and converts
+    its parameter combinations into individual simulation
+    cases. It then passes these cases to
+    \texttt{run\_rom\_for\_cases} to evaluate the ROM over
+    the selected parameter grid. This script provides the
+    main entry point for the multi-case ROM evaluation.
+
+\end{itemize}
+
+The overall implementation separates the construction of
+the full-order operator components, their Galerkin
+projection, the solution of the reduced system, and the
+evaluation of individual parameter cases. Although the
+full-order operators and their reduced projections depend
+only on the fixed grid and prescribed velocity field, the
+current evaluation workflow reconstructs the operator
+components for individual cases. Therefore, the code has
+the mathematical structure needed for an offline-online
+decomposition, but does not yet implement a fully
+precomputed offline stage in which all reusable reduced
+operators are constructed once and stored for subsequent
+parameter evaluations.

@@ -1,0 +1,536 @@
+\section{Independent Evaluation Methodology}
+\label{sec:independent_evaluation}
+
+The original and augmented POD bases are compared using a
+separate test dataset that is independent of both training
+datasets. This evaluation is designed to assess whether the
+additional snapshots improve the predictive accuracy of the
+reduced-order model at parameter combinations that were not
+used during the construction of either basis.
+
+Both bases are evaluated using the same full-order reference
+solutions, parameter combinations, and retained mode counts.
+This paired evaluation makes it possible to attribute
+differences in ROM accuracy to the choice of POD basis rather
+than to differences in the evaluation cases.
+
+\subsection{Generation of the final test set}
+
+A second set of 100 parameter combinations is generated using
+Latin hypercube sampling (LHS) over the prescribed parameter
+domain:
+\[
+1\leq\mu\leq100,
+\qquad
+0.01\leq Br\leq2.
+\]
+
+Unlike the first LHS dataset, which was used to screen the
+original basis and identify high-error regions, this dataset
+is reserved for the final comparison between the original
+and augmented bases. It is generated only after the
+additional training snapshots have been selected and the
+augmented POD basis has been constructed.
+
+To maintain the independence of the test set, the parameter
+combinations used in both training datasets are first
+collected. These include the original 100 training cases
+and the 15 additional cases introduced through local
+refinement. The corresponding parameter combinations are
+stored as training keys and used to filter the LHS samples.
+
+The test-grid generation procedure follows these steps:
+\begin{enumerate}
+    \item Generate candidate parameter combinations using
+    a Latin hypercube sampler over the prescribed domain.
+    \item Load the parameter keys associated with the
+    original and augmented training datasets.
+    \item Reject candidate combinations that duplicate
+    parameter combinations already used in either training
+    dataset.
+    \item Retain unique parameter combinations to construct
+    the final test grid.
+    \item Save the accepted combinations in a CSV file.
+\end{enumerate}
+
+After obtaining the 100 test parameter combinations, the
+full-order solver is executed for each case. The resulting
+converged temperature fields are saved and associated with
+their parameter values in a test-case summary file.
+
+The final evaluation dataset therefore contains 100
+parameter combinations and their corresponding full-order
+reference temperature fields. None of these parameter
+combinations is included in the original or augmented
+POD training datasets.
+
+\subsection{Paired comparison of the two POD bases}
+
+The original and augmented POD bases are evaluated using
+exactly the same final test cases. For each test parameter
+combination, the corresponding full-order temperature
+solution is used as the common reference for both ROM
+evaluations.
+
+The comparison considers the retained mode counts
+\[
+\boxed{
+r\in\{1,2,3,4,5,6,8,10\}.
+}
+\]
+
+For every mode count, the following procedure is performed:
+\begin{enumerate}
+    \item Load the original and augmented POD bases.
+    \item Select the first $r$ modes from each basis.
+    \item Evaluate the original-basis ROM for each test case.
+    \item Evaluate the augmented-basis ROM for the same
+    test case and retained mode count.
+    \item Reconstruct both temperature fields and compare
+    them against the same full-order reference solution.
+    \item Store the case-wise errors and pair the original
+    and augmented results using their test-case identifiers.
+\end{enumerate}
+
+Since both bases are evaluated at every mode count for all
+100 test cases, the comparison involves
+\[
+100\times8\times2=1600
+\]
+ROM evaluations: 800 evaluations using the original basis
+and 800 using the augmented basis.
+
+The paired evaluation is important because it keeps the
+parameter combinations and reference solutions unchanged
+while changing only the POD basis. Consequently, the
+differences in error can be examined on a case-by-case
+basis rather than inferred solely from two independently
+calculated error distributions.
+
+\subsection{Comparison statistics}
+
+The relative $L_2$ error defined in
+Eq.~\eqref{eq:relative_l2_error} is used as the primary
+measure for comparing the two bases. For each basis and
+retained mode count, the mean, median, 95th percentile,
+and maximum relative $L_2$ errors are calculated over
+the 100 test cases.
+
+The mean error describes the overall average performance,
+while the median represents the central value of the error
+distribution. The 95th percentile provides information
+about the upper tail of the distribution without depending
+on only the single worst case. The maximum error identifies
+the most inaccurate test case.
+
+These statistics are reported separately for the original
+and augmented bases in Table~\ref{tab:independent_error_statistics}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Relative $L_2$ error statistics for the original
+    and augmented POD bases over the 100 independent test cases.}
+    \label{tab:independent_error_statistics}
+    \scriptsize
+    \begin{tabular}{ccccccc}
+        \toprule
+        \textbf{Basis} &
+        \textbf{Modes} &
+        \textbf{Cases} &
+        \textbf{Mean} &
+        \textbf{Median} &
+        \textbf{95th percentile} &
+        \textbf{Maximum} \\
+        \midrule
+        Original  & 1  & 100 & 0.401768 & 0.437246 & 0.620615 & 0.634832 \\
+        Original  & 2  & 100 & 0.176187 & 0.166973 & 0.371498 & 0.411629 \\
+        Original  & 3  & 100 & 0.028506 & 0.024564 & 0.062156 & 0.081035 \\
+        Original  & 4  & 100 & 0.008127 & 0.007205 & 0.026946 & 0.044410 \\
+        Original  & 5  & 100 & 0.002725 & 0.001065 & 0.018959 & 0.030992 \\
+        Original  & 6  & 100 & 0.001571 & 0.000189 & 0.013137 & 0.026048 \\
+        Original  & 8  & 100 & 0.000876 & $3.00\times10^{-6}$ & 0.006426 & 0.018205 \\
+        Original  & 10 & 100 & 0.000577 & $3.31\times10^{-8}$ & 0.003450 & 0.013008 \\
+        \midrule
+        Augmented & 1  & 100 & 0.384505 & 0.423167 & 0.594550 & 0.608058 \\
+        Augmented & 2  & 100 & 0.193602 & 0.163706 & 0.435441 & 0.468897 \\
+        Augmented & 3  & 100 & 0.036678 & 0.035301 & 0.079193 & 0.095283 \\
+        Augmented & 4  & 100 & 0.013629 & 0.013465 & 0.028654 & 0.037714 \\
+        Augmented & 5  & 100 & 0.003841 & 0.004188 & 0.007181 & 0.009805 \\
+        Augmented & 6  & 100 & 0.000930 & 0.000758 & 0.001740 & 0.005040 \\
+        Augmented & 8  & 100 & 0.000141 & 0.000123 & 0.000241 & 0.001747 \\
+        Augmented & 10 & 100 & $1.74\times10^{-5}$ & $1.30\times10^{-5}$ & $3.07\times10^{-5}$ & 0.000401 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+In addition to the aggregate statistics, the comparison
+examines the difference in relative $L_2$ error for each
+paired test case. Define the case-wise error change as
+\begin{equation}
+    \boxed{
+    \Delta\epsilon_k
+    =
+    \epsilon_{\mathrm{rel},k}^{\mathrm{aug}}
+    -
+    \epsilon_{\mathrm{rel},k}^{\mathrm{orig}}.
+    }
+    \label{eq:casewise_error_change}
+\end{equation}
+A negative value indicates that the augmented basis
+produces a lower error for that test case, whereas a
+positive value indicates that its error is higher.
+
+The mean and median of $\Delta\epsilon_k$, together
+with its 5th and 95th percentiles, are calculated for
+each retained mode count. The percentage of test cases
+for which the augmented basis produces a lower error
+is also evaluated:
+\begin{equation}
+    \boxed{
+    P_{\mathrm{improved}}
+    =
+    \frac{
+    \displaystyle\sum_{k=1}^{N_t}
+    \mathbb{I}
+    \left(
+    \epsilon_{\mathrm{rel},k}^{\mathrm{aug}}
+    <
+    \epsilon_{\mathrm{rel},k}^{\mathrm{orig}}
+    \right)
+    }{N_t}
+    \times100,
+    }
+    \label{eq:percentage_improved}
+\end{equation}
+where $N_t=100$ and $\mathbb{I}$ is the indicator
+function.
+
+The percentage reduction in the mean relative $L_2$
+error is defined as
+\begin{equation}
+    \boxed{
+    R_{\mathrm{mean}}
+    =
+    \frac{
+    \bar{\epsilon}_{\mathrm{orig}}
+    -
+    \bar{\epsilon}_{\mathrm{aug}}
+    }{
+    \bar{\epsilon}_{\mathrm{orig}}
+    }\times100.
+    }
+    \label{eq:mean_error_reduction}
+\end{equation}
+An analogous expression is used for the maximum relative
+$L_2$ error:
+\begin{equation}
+    R_{\max}
+    =
+    \frac{
+    \epsilon_{\max,\mathrm{orig}}
+    -
+    \epsilon_{\max,\mathrm{aug}}
+    }{
+    \epsilon_{\max,\mathrm{orig}}
+    }\times100.
+    \label{eq:maximum_error_reduction}
+\end{equation}
+Positive values indicate a reduction in error with the
+augmented basis, whereas negative values indicate an
+increase.
+
+Reporting only the mean error would be insufficient for
+this comparison. An augmented basis may substantially
+reduce the mean error through improvements in a relatively
+small number of cases, while producing larger errors in
+many other cases. The case-wise difference and percentage
+of improved cases provide additional information about
+whether the enrichment benefits the test set consistently.
+
+\subsection{Results of the paired basis comparison}
+
+The paired comparison results for the eight retained
+mode counts are presented in
+Table~\ref{tab:paired_basis_comparison}. The table reports
+the mean and maximum relative $L_2$ errors for each basis,
+their percentage reductions, and the percentage of
+individual test cases improved by the augmented basis.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Paired comparison of original and augmented
+    POD bases over 100 independent test cases.}
+    \label{tab:paired_basis_comparison}
+    \scriptsize
+    \setlength{\tabcolsep}{3pt}
+    \resizebox{\textwidth}{!}{%
+        \begin{tabular}{cccccccc}
+            \toprule
+            \textbf{Modes} &
+            \textbf{Mean, orig.} &
+            \textbf{Mean, aug.} &
+            \textbf{Mean reduction (\%)} &
+            \textbf{Max., orig.} &
+            \textbf{Max., aug.} &
+            \textbf{Max. reduction (\%)} &
+            \textbf{Improved cases (\%)} \\
+            \midrule
+            1  & 0.401768 & 0.384505 & 4.2967   & 0.634832 & 0.608058 & 4.2175   & 100 \\
+            2  & 0.176187 & 0.193602 & -9.8843  & 0.411629 & 0.468897 & -13.9125 & 33 \\
+            3  & 0.028506 & 0.036678 & -28.6650 & 0.081035 & 0.095283 & -17.5825 & 32 \\
+            4  & 0.008127 & 0.013629 & -67.6905 & 0.044410 & 0.037714 & 15.0773  & 28 \\
+            5  & 0.002725 & 0.003841 & -40.9432 & 0.030992 & 0.009805 & 68.3639  & 22 \\
+            6  & 0.001571 & 0.000930 & 40.7665  & 0.026048 & 0.005040 & 80.6523  & 22 \\
+            8  & 0.000876 & 0.000141 & 83.9121  & 0.018205 & 0.001747 & 90.4018  & 11 \\
+            10 & 0.000577 & $1.74\times10^{-5}$ & 96.9841 &
+            0.013008 & 0.000401 & 96.9175 & 20 \\
+            \bottomrule
+        \end{tabular}%
+    }
+\end{table}
+
+The case-wise error changes are summarized in
+Table~\ref{tab:casewise_error_changes}. Negative values
+represent improvements produced by the augmented basis.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Statistics of the paired case-wise relative
+    $L_2$ error changes,
+    $\Delta\epsilon=\epsilon_{\mathrm{aug}}-\epsilon_{\mathrm{orig}}$.}
+    \label{tab:casewise_error_changes}
+    \small
+    \begin{tabular}{cccccc}
+        \toprule
+        \textbf{Modes} &
+        \textbf{Mean} &
+        \textbf{Median} &
+        \textbf{5th percentile} &
+        \textbf{95th percentile} &
+        \textbf{Improved cases (\%)} \\
+        \midrule
+        1  & -0.017260 & -0.017340 & -0.026400 & -0.004820 & 100 \\
+        2  &  0.017415 &  0.041945 & -0.080070 &  0.077803 & 33 \\
+        3  &  0.008171 &  0.011487 & -0.027850 &  0.031049 & 32 \\
+        4  &  0.005501 &  0.007381 & -0.014240 &  0.021053 & 28 \\
+        5  &  0.001116 &  0.002426 & -0.013540 &  0.005900 & 22 \\
+        6  & -0.000640 &  0.000445 & -0.011450 &  0.001546 & 22 \\
+        8  & -0.000730 &  0.000082 & -0.006310 &  0.000193 & 11 \\
+        10 & -0.000560 &  0.00000833 & -0.003440 &  0.0000271 & 20 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+For one retained mode, the augmented basis improves all
+100 test cases. The mean relative $L_2$ error decreases
+by 4.30\%, and the maximum error decreases by 4.22\%.
+
+The results are different for two and three modes. At
+both ranks, the augmented basis produces larger mean
+and maximum errors. Only 33\% and 32\% of the test
+cases, respectively, have lower errors with the
+augmented basis.
+
+For four and five modes, the maximum errors decrease
+by 15.08\% and 68.36\%, respectively. However, the
+mean errors increase by 67.69\% and 40.94\%, and
+only 28\% and 22\% of the test cases improve. Thus,
+the reduction in the worst-case error does not imply
+an overall improvement across the test set.
+
+At six modes, the augmented basis reduces the mean
+relative $L_2$ error by 40.77\% and the maximum error
+by 80.65\%. Nevertheless, only 22\% of individual
+test cases improve. The mean and median case-wise
+error changes also have opposite signs. This indicates
+that substantial improvements in a relatively small
+number of cases compensate for error increases in
+a larger number of cases.
+
+The difference is even more pronounced at eight
+and ten modes. At eight modes, the mean error
+decreases by 83.91\% and the maximum error decreases
+by 90.40\%, but only 11\% of the individual cases
+improve. At ten modes, the mean and maximum errors
+decrease by approximately 96.98\% and 96.92\%,
+respectively, while only 20\% of the cases improve.
+
+These results show why the mean error alone cannot
+describe the effect of snapshot enrichment. At higher
+basis dimensions, the augmented basis produces
+substantial improvements in the mean and maximum
+errors, but the case-wise statistics show that these
+improvements are not distributed uniformly across
+the test set. For several mode counts, the median
+case-wise error change is positive even when the
+mean change is negative.
+
+Additional error measures are reported in
+Table~\ref{tab:additional_error_metrics}. These include
+the mean and median RMSE, the mean of the case-wise
+maximum absolute errors, and the largest absolute
+error across all test cases.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Additional error measures and mean ROM
+    computation time for the two POD bases.}
+    \label{tab:additional_error_metrics}
+    \scriptsize
+    \setlength{\tabcolsep}{3pt}
+    \resizebox{\textwidth}{!}{%
+        \begin{tabular}{ccccccc}
+            \toprule
+            \textbf{Basis} &
+            \textbf{Modes} &
+            \textbf{Mean RMSE} &
+            \textbf{Median RMSE} &
+            \textbf{Mean max. abs. error} &
+            \textbf{Maximum abs. error} &
+            \textbf{Mean ROM time (s)} \\
+            \midrule
+            Original  & 1  & 0.815932 & 0.800746 & 1.535463 & 5.172093 & 0.000307 \\
+            Original  & 2  & 0.378037 & 0.302243 & 0.795553 & 3.403278 & 0.000402 \\
+            Original  & 3  & 0.074669 & 0.040121 & 0.171397 & 1.960261 & 0.000366 \\
+            Original  & 4  & 0.026578 & 0.011539 & 0.068964 & 1.086724 & 0.000386 \\
+            Original  & 5  & 0.012879 & 0.001724 & 0.036530 & 0.750323 & 0.000408 \\
+            Original  & 6  & 0.009093 & 0.000303 & 0.027099 & 0.636573 & 0.000415 \\
+            Original  & 8  & 0.005597 & $4.91\times10^{-6}$ & 0.018300 & 0.516899 & 0.000461 \\
+            Original  & 10 & 0.003786 & $4.71\times10^{-8}$ & 0.013759 & 0.434450 & 0.000523 \\
+            \midrule
+            Augmented & 1  & 0.774306 & 0.741124 & 1.498850 & 4.911156 & 0.000331 \\
+            Augmented & 2  & 0.380486 & 0.286150 & 0.748525 & 2.356156 & 0.000417 \\
+            Augmented & 3  & 0.080750 & 0.061802 & 0.175861 & 1.057812 & 0.000418 \\
+            Augmented & 4  & 0.029537 & 0.022399 & 0.070843 & 0.541289 & 0.000431 \\
+            Augmented & 5  & 0.009004 & 0.006955 & 0.023487 & 0.296553 & 0.000461 \\
+            Augmented & 6  & 0.002595 & 0.001311 & 0.008216 & 0.193327 & 0.000473 \\
+            Augmented & 8  & 0.000475 & 0.000177 & 0.001579 & 0.073051 & 0.000544 \\
+            Augmented & 10 & $7.24\times10^{-5}$ & $2.26\times10^{-5}$ & 0.000221 & 0.014533 & 0.000637 \\
+            \bottomrule
+        \end{tabular}%
+    }
+\end{table}
+
+The absolute-error measures show the same general trend
+at higher basis dimensions: the augmented basis reduces
+the mean RMSE and the maximum absolute error for six,
+eight, and ten modes. Its mean ROM computation time is
+slightly higher for every mode count. This is consistent
+with the additional projection and reduced-system
+operations associated with the larger augmented
+snapshot basis. These times describe the ROM evaluation
+itself and do not include the cost of generating the
+full-order training and test datasets.
+
+Overall, the augmented basis does not provide a uniform
+improvement across all retained mode counts and test
+cases. Its performance is worse on average for two,
+three, four, and five modes, although the maximum
+error decreases at four and five modes. At six, eight,
+and ten modes, it produces substantially lower mean
+and maximum errors, but the percentage of individual
+cases improved remains relatively small.
+
+The results therefore indicate that the effect of
+snapshot enrichment depends on the retained basis
+dimension and the parameter combination being
+evaluated. The improvement in aggregate error
+statistics should be interpreted together with the
+paired case-wise differences.
+
+\subsection{Computational procedure and code implementation}
+
+The final independent evaluation is implemented through
+two scripts in the \texttt{F05\_refinement} directory.
+
+\begin{itemize}
+
+    \item \texttt{f06\_generate\_independent\_test\_set.py}:
+    Generates the final independent LHS test dataset.
+    Its main function,
+    \texttt{run\_independent\_test\_set\_generation},
+    loads the parameter keys from both the original
+    and augmented training datasets. The function
+    \texttt{load\_training\_parameter\_keys} combines
+    these keys to exclude previously used parameter
+    combinations.
+
+    The function \texttt{generate\_test\_parameter\_grid}
+    generates candidate samples using
+    \texttt{scipy.stats.qmc.LatinHypercube}, filters
+    duplicate and previously used parameter
+    combinations, and returns the accepted test grid.
+    The resulting parameter combinations are saved
+    in a CSV file. The main function then processes
+    each accepted case using \texttt{run\_fom\_case},
+    saves the full-order temperature field, and
+    records the associated simulation information.
+
+    \item \texttt{f07\_compare\_original\_and\_augmented\_bases.py}:
+    Evaluates and compares the original and augmented
+    POD bases using the independent test dataset.
+    The main function, \texttt{run\_basis\_comparison},
+    loads the full-order test cases and both POD bases,
+    evaluates the ROMs over the selected mode counts,
+    constructs paired case-wise comparisons, and
+    generates the corresponding error visualizations.
+
+    The function \texttt{evaluate\_rom} performs an
+    individual ROM evaluation. It constructs the
+    full-order operator components, projects them
+    onto the selected POD basis, assembles the
+    reduced system, solves for the modal coefficients,
+    and reconstructs the temperature field.
+
+    The function \texttt{run\_rom\_evaluations}
+    applies this procedure to every test case, both
+    POD bases, and all selected mode counts. Each
+    result is saved with its corresponding test-case
+    identifier and basis information.
+
+    The function \texttt{build\_comparison\_summary}
+    calculates the aggregate error statistics for
+    each basis and mode count. The function
+    \texttt{build\_paired\_comparison} associates
+    the original and augmented results for each
+    identical test case. The function
+    \texttt{build\_improvement\_summary} then
+    calculates the case-wise error changes and
+    improvement statistics.
+
+    Finally, the plotting routines
+    \texttt{plot\_error\_comparison},
+    \texttt{plot\_error\_reduction}, and
+    \texttt{plot\_error\_maps} generate visual
+    comparisons of the error distributions, the
+    changes introduced by augmentation, and their
+    variation across the parameter domain.
+
+\end{itemize}
+
+The evaluation workflow can be summarized as
+\[
+\boxed{
+\begin{gathered}
+\text{Independent LHS parameter set}\\
+\downarrow\\
+\text{Full-order reference solutions}\\
+\downarrow\\
+\begin{array}{cc}
+\text{Original POD basis} &
+\text{Augmented POD basis}\\
+\downarrow & \downarrow\\
+\text{Original ROM} & \text{Augmented ROM}
+\end{array}\\
+\downarrow\\
+\text{Paired error comparison}\\
+\downarrow\\
+\text{Aggregate and case-wise statistics}
+\end{gathered}
+}
+\]
+
+Since both bases use the same independent test cases and
+full-order reference fields, the resulting comparison
+provides a consistent assessment of the effect of
+snapshot enrichment on ROM accuracy.

@@ -1,0 +1,766 @@
+\section{Error Assessment and Adaptive Snapshot Enrichment}
+\label{sec:pod_enrichment}
+
+The original POD basis provides a compact spatial representation
+of the temperature fields in the training dataset. However, its
+ability to represent solutions at parameter combinations outside
+the training set must be assessed separately. This section
+evaluates the original reduced-order model (ROM) over an
+independent parameter sample, examines the effect of the number
+of retained modes, and introduces a targeted snapshot-enrichment
+procedure to improve the spatial basis.
+
+The refinement procedure considers three approaches: increasing
+the number of retained POD modes, identifying parameter regions
+associated with relatively large ROM errors, and adding
+full-order snapshots around selected high-error locations.
+The resulting augmented basis is then compared with the original
+basis.
+
+\subsection{Initial ROM error assessment}
+
+The reconstruction accuracy of a POD basis on its training
+snapshots does not establish its predictive accuracy at new
+parameter combinations. The ROM must also be evaluated at
+parameter values that were not included in the construction
+of the original snapshot matrix.
+
+For this purpose, an independent set of 100 parameter
+combinations is generated using Latin hypercube sampling (LHS)
+over the prescribed parameter domain:
+\[
+1\leq\mu\leq100,
+\qquad
+0.01\leq Br\leq2.
+\]
+Unlike the uniformly spaced original training grid, the LHS
+samples provide a separate distribution of parameter locations
+throughout the domain.
+
+For each sampled parameter pair $(\mu_k,Br_k)$, the full-order
+model is solved to obtain a reference temperature field.
+The corresponding ROM solution is then calculated using the
+original POD basis. The resulting errors are recorded for
+different numbers of retained modes.
+
+This LHS dataset is used as an error-screening dataset. Its
+purpose is to examine the performance of the original basis,
+assess the effect of the retained basis dimension, and identify
+parameter combinations that may require additional snapshots.
+The 100 LHS cases are separate from the original training
+snapshots and are not used to construct the initial POD basis.
+They are also distinct from the subsequent dataset used for
+the original-versus-augmented basis comparison.
+
+\subsection{Error metrics}
+
+The difference between the full-order and reduced-order
+temperature fields is quantified using three error measures.
+Let $\mathbf{T}_{\mathrm{FOM}}$ and
+$\mathbf{T}_{\mathrm{ROM}}$ denote the corresponding
+temperature vectors, each containing $N$ physical
+temperature values.
+
+The relative discrete $L_2$ error is defined as
+\begin{equation}
+    \boxed{
+    \epsilon_{\mathrm{rel}}
+    =
+    \frac{
+    \left\|
+    \mathbf{T}_{\mathrm{FOM}}
+    -
+    \mathbf{T}_{\mathrm{ROM}}
+    \right\|_2
+    }{
+    \left\|
+    \mathbf{T}_{\mathrm{FOM}}
+    \right\|_2
+    }.
+    }
+    \label{eq:relative_l2_error}
+\end{equation}
+This measure quantifies the overall difference between the
+two temperature fields relative to the magnitude of the
+full-order solution.
+
+The root-mean-square error (RMSE) is calculated as
+\begin{equation}
+    \boxed{
+    RMSE
+    =
+    \sqrt{
+    \frac{1}{N}
+    \sum_{i=1}^{N}
+    \left(
+    T_{\mathrm{FOM},i}
+    -
+    T_{\mathrm{ROM},i}
+    \right)^2
+    }.
+    }
+    \label{eq:rom_rmse}
+\end{equation}
+The RMSE measures the average magnitude of the temperature
+differences over all physical degrees of freedom.
+
+The maximum absolute error is defined as
+\begin{equation}
+    \boxed{
+    \epsilon_{\max}
+    =
+    \max_i
+    \left|
+    T_{\mathrm{FOM},i}
+    -
+    T_{\mathrm{ROM},i}
+    \right|.
+    }
+    \label{eq:rom_max_error}
+\end{equation}
+Unlike the RMSE, this measure is determined by the single
+spatial location with the largest absolute temperature
+difference.
+
+These measures provide complementary information. The
+relative $L_2$ error describes the overall field discrepancy
+relative to the full-order solution, the RMSE quantifies the
+average absolute difference per degree of freedom, and the
+maximum absolute error identifies the largest local
+discrepancy.
+
+All three metrics are calculated using the complete
+reconstructed temperature field, rather than only the
+temperature-deviation field. Thus, the comparison is performed
+between $\mathbf{T}_{\mathrm{FOM}}$ and
+$\mathbf{T}_{\mathrm{ROM}}$ after the reference temperature
+has been added to the ROM reconstruction.
+
+\subsection{Mode-count study}
+
+The first refinement step examines the effect of increasing
+the number of retained POD modes. The same original POD basis
+is evaluated using the following mode counts:
+\[
+\boxed{
+r\in\{1,2,3,4,5,6,8,10\}.
+}
+\]
+For each selected value of $r$, the first $r$ modes of the
+original basis are retained. The Galerkin reduced system is
+then constructed and solved for each of the 100 LHS
+parameter combinations.
+
+The mean, median, 95th-percentile, and maximum relative
+$L_2$ errors are reported in Table~\ref{tab:mode_count_errors}.
+The mean RMSE is also included to provide information about
+the absolute temperature discrepancy.
+
+\begin{table}[htbp]
+    \centering
+    \caption{ROM error statistics for different numbers of
+    retained POD modes over the 100 LHS screening cases.}
+    \label{tab:mode_count_errors}
+    \small
+    \begin{tabular}{ccccccc}
+        \toprule
+        \textbf{Modes} &
+        \textbf{Cases} &
+        \textbf{Mean} &
+        \textbf{Median} &
+        \textbf{95th percentile} &
+        \textbf{Maximum} &
+        \textbf{Mean RMSE} \\
+        \midrule
+        1  & 100 & 0.395587 & 0.418291 & 0.614300 & 0.636144 & 0.813243 \\
+        2  & 100 & 0.171552 & 0.175393 & 0.348644 & 0.410623 & 0.378429 \\
+        3  & 100 & 0.027889 & 0.025590 & 0.063268 & 0.079345 & 0.073850 \\
+        4  & 100 & 0.007663 & 0.006444 & 0.020409 & 0.044846 & 0.024056 \\
+        5  & 100 & 0.002532 & 0.001145 & 0.013146 & 0.031450 & 0.010355 \\
+        6  & 100 & 0.001377 & 0.000184 & 0.008551 & 0.024884 & 0.006698 \\
+        8  & 100 & 0.000726 & $3.02\times10^{-6}$ & 0.005354 & 0.015513 & 0.003776 \\
+        10 & 100 & 0.000468 & $2.96\times10^{-8}$ & 0.003338 & 0.010435 & 0.002440 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The results show a consistent reduction in ROM error as
+the number of retained modes increases. With one mode,
+the mean relative $L_2$ error is approximately 39.56\%,
+and the maximum error reaches 63.61\%. Increasing the
+basis dimension to three modes reduces the mean error
+to 2.79\%, while four modes reduce it further to 0.77\%.
+
+The improvement continues with additional modes. For
+ten retained modes, the mean relative $L_2$ error
+decreases to approximately 0.0468\%, and the median
+reaches $2.96\times10^{-8}$. However, the 95th-percentile
+error remains approximately 0.334\%, and the maximum
+error is approximately 1.04\%. This difference between
+the median and upper-tail statistics indicates that
+the ROM errors are not uniformly distributed across
+the test cases. Although the typical error becomes very
+small at higher basis dimensions, some parameter
+combinations still exhibit comparatively larger errors.
+
+The maximum error does not necessarily occur at the same
+parameter combination for every mode count. The locations
+associated with the maximum errors are reported in
+Table~\ref{tab:mode_count_error_locations}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Parameter combinations associated with the
+    maximum relative $L_2$ error at each retained mode count.}
+    \label{tab:mode_count_error_locations}
+    \small
+    \begin{tabular}{cccc}
+        \toprule
+        \textbf{Modes} &
+        \textbf{Case ID} &
+        $\boldsymbol{\mu}$ &
+        $\boldsymbol{Br}$ \\
+        \midrule
+        1  & \texttt{lhs\_test\_0054} & 92.777390 & 1.948657 \\
+        2  & \texttt{lhs\_test\_0016} & 98.197590 & 1.610037 \\
+        3  & \texttt{lhs\_test\_0070} & 5.720724 & 1.320725 \\
+        4  & \texttt{lhs\_test\_0075} & 4.066653 & 1.769485 \\
+        5  & \texttt{lhs\_test\_0075} & 4.066653 & 1.769485 \\
+        6  & \texttt{lhs\_test\_0075} & 4.066653 & 1.769485 \\
+        8  & \texttt{lhs\_test\_0075} & 4.066653 & 1.769485 \\
+        10 & \texttt{lhs\_test\_0099} & 3.035937 & 0.320114 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The maximum-error location changes with the retained
+basis dimension. For three modes, the largest error
+occurs at $(\mu,Br)=(5.720724,1.320725)$. For four,
+five, six, and eight modes, the same parameter
+combination, $(4.066653,1.769485)$, produces the
+maximum error. At ten modes, the maximum shifts to
+$(3.035937,0.320114)$. This variation indicates that
+increasing the number of modes does not reduce the
+error uniformly at every parameter location.
+
+A plot of the mean, median, 95th-percentile, and maximum
+relative $L_2$ errors against the retained mode count
+provides a visual comparison of the error distributions.
+A logarithmic vertical axis is suitable because the
+error values span several orders of magnitude.
+
+\subsection{Identification of high-error parameter regions}
+
+The LHS screening results are also used to identify
+parameter combinations for which the original ROM
+produces relatively large errors. Each evaluation case
+is associated with its parameter coordinates,
+\[
+(\mu_k,Br_k),
+\]
+and its corresponding relative $L_2$ error,
+$\epsilon_{\mathrm{rel},k}$.
+
+The error values are examined over the two-dimensional
+parameter space. A scatter plot of the LHS samples,
+coloured according to their relative $L_2$ errors,
+provides a spatial representation of the ROM accuracy
+throughout the sampled domain.
+
+This visualization helps identify regions where the
+original basis produces larger errors. These regions
+provide candidate locations for additional training
+snapshots. The parameter coordinates are retained
+alongside the error values so that the high-error
+cases can be ranked and grouped during the subsequent
+hotspot-selection procedure.
+
+The errors are not necessarily distributed uniformly
+across the parameter domain. Consequently, simply
+increasing the number of uniformly spaced training
+points may not efficiently target the locations where
+the original reduced basis has the greatest difficulty.
+The enrichment procedure instead uses the case-wise
+ROM errors to guide the selection of additional
+snapshot locations.
+
+\subsection{Selection of hotspot candidates}
+
+The hotspot-selection procedure considers the results
+from four selected mode counts:
+\[
+\boxed{
+r\in\{5,6,8,10\}.
+}
+\]
+For each of these mode counts, the cases with the
+largest ROM errors are considered. The mode-count
+study provides the 20 highest-error records for each
+selected mode count. From these records, the six
+highest-ranked cases are selected as candidates.
+
+Candidates are ranked separately within each mode
+count because the magnitude and distribution of the
+errors change with the number of retained modes.
+Therefore, raw error values are not compared directly
+across different mode counts. Instead, each candidate
+receives an order score according to its position in
+the error ranking for the corresponding mode count.
+A higher rank score represents a more severe position
+in that ranking.
+
+The candidate records from the different mode counts
+are then grouped according to their parameter
+combinations $(\mu,Br)$. This allows a parameter
+combination that appears among the high-error cases
+for multiple mode counts to be identified and given
+additional support.
+
+Two quantities are calculated for each grouped
+parameter combination.
+
+First, the mean rank score, $S_{\mathrm{rank}}$,
+represents its average ranking across the mode counts
+in which it appears. A higher score indicates that
+the parameter combination is consistently associated
+with a relatively large ROM error.
+
+Second, the support fraction, $S_{\mathrm{support}}$,
+measures how many of the selected mode counts identify
+the same parameter combination as a high-error
+candidate. It is defined as
+\begin{equation}
+    \boxed{
+    S_{\mathrm{support}}
+    =
+    \frac{n_{\mathrm{mode}}}{N_{\mathrm{mode}}},
+    }
+    \label{eq:hotspot_support}
+\end{equation}
+where $n_{\mathrm{mode}}$ is the number of selected
+mode counts in which the parameter combination appears,
+and $N_{\mathrm{mode}}=4$ is the total number of
+mode counts considered.
+
+The two quantities are combined to obtain the base
+candidate score:
+\begin{equation}
+    \boxed{
+    S_{\mathrm{base}}
+    =
+    0.70S_{\mathrm{rank}}
+    +
+    0.30S_{\mathrm{support}}.
+    }
+    \label{eq:hotspot_base_score}
+\end{equation}
+This weighting assigns 70\% of the score to the
+candidate's mean ranking and 30\% to its support
+across different mode counts. The resulting base
+scores provide an initial ranking of the hotspot
+candidates.
+
+However, selecting candidates solely according to
+their base scores could produce several locations
+close to one another in parameter space. A further
+selection criterion is therefore introduced to
+promote spatial diversity.
+
+\subsection{Spatially diverse hotspot selection}
+
+Selecting the highest-scoring candidates independently
+may lead to several hotspots concentrated in a
+relatively small region of the parameter domain.
+Such a selection would provide limited coverage of
+other potentially problematic regions.
+
+To promote spatial diversity, the hotspot-selection
+algorithm uses a normalized Euclidean distance in
+the two-dimensional parameter space. The normalized
+parameter coordinates are defined as
+\begin{equation}
+    \tilde{\mu}
+    =
+    \frac{\mu-\mu_{\min}}
+    {\mu_{\max}-\mu_{\min}},
+    \qquad
+    \widetilde{Br}
+    =
+    \frac{Br-Br_{\min}}
+    {Br_{\max}-Br_{\min}}.
+    \label{eq:normalized_parameter_coordinates}
+\end{equation}
+
+The normalized distance between two parameter
+combinations $p$ and $q$ is
+\begin{equation}
+    d(p,q)
+    =
+    \sqrt{
+    (\tilde{\mu}_p-\tilde{\mu}_q)^2
+    +
+    (\widetilde{Br}_p-\widetilde{Br}_q)^2
+    }.
+    \label{eq:normalized_parameter_distance}
+\end{equation}
+
+At each selection step, the minimum distance from
+an unselected candidate $p$ to the already selected
+hotspots is calculated:
+\begin{equation}
+    \boxed{
+    d_{\min}(p)
+    =
+    \min_{q\in\mathcal{H}}d(p,q),
+    }
+    \label{eq:minimum_hotspot_distance}
+\end{equation}
+where $\mathcal{H}$ denotes the set of selected
+hotspot centres.
+
+The first hotspot is selected according to the
+highest base score. For subsequent selections, the
+candidate score combines its base score with its
+minimum distance from the existing hotspot centres:
+\begin{equation}
+    \boxed{
+    S_{\mathrm{selection}}
+    =
+    0.55S_{\mathrm{base}}
+    +
+    0.45d_{\min}.
+    }
+    \label{eq:hotspot_selection_score}
+\end{equation}
+The candidate with the highest updated selection
+score is added to the hotspot set. Its inclusion
+changes the minimum-distance values of the remaining
+candidates, and the procedure is repeated until the
+maximum permitted number of hotspot centres is
+reached or the available candidates are exhausted.
+
+The algorithm permits up to six hotspot centres.
+However, the actual selection procedure produced
+three centres for the present dataset. Their
+coordinates are reported in
+Table~\ref{tab:selected_hotspots}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Selected hotspot centres in the parameter domain.}
+    \label{tab:selected_hotspots}
+    \begin{tabular}{ccc}
+        \toprule
+        \textbf{Hotspot} &
+        $\boldsymbol{\mu}$ &
+        $\boldsymbol{Br}$ \\
+        \midrule
+        1 & 4.066653 & 1.769485 \\
+        2 & 3.035937 & 0.320114 \\
+        3 & 5.720724 & 1.320725 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The selected locations correspond to parameter
+combinations that appear among the maximum-error
+cases for several of the tested mode counts. In
+particular, the first hotspot is the maximum-error
+location for four, five, six, and eight modes. The
+third hotspot is the maximum-error location for
+three modes, while the second is the maximum-error
+location for ten modes. This agreement provides
+additional motivation for using these locations
+as centres for local enrichment.
+
+A parameter-space scatter plot can be used to show
+the LHS screening samples and the selected hotspot
+centres. This provides a visual representation of
+the selected enrichment locations relative to the
+parameter domain.
+
+\subsection{Local parameter-space refinement}
+
+Additional parameter combinations are generated
+around each selected hotspot to enrich the original
+snapshot dataset in regions associated with
+relatively large ROM errors.
+
+The original uniformly spaced training grid has
+parameter spacings
+\begin{equation}
+    \Delta\mu
+    =
+    \frac{100-1}{10-1}
+    =11,
+\end{equation}
+and
+\begin{equation}
+    \Delta Br
+    =
+    \frac{2-0.01}{10-1}
+    \approx0.221111.
+\end{equation}
+
+For each hotspot centre $(\mu_h,Br_h)$, local
+parameter combinations are generated using the
+offset coefficients
+\[
+\delta_\mu,\delta_{Br}
+\in\{-0.5,0,0.5\}.
+\]
+The corresponding parameter values are
+\begin{equation}
+    \mu
+    =
+    \mu_h+\delta_\mu\Delta\mu,
+    \qquad
+    Br
+    =
+    Br_h+\delta_{Br}\Delta Br.
+    \label{eq:local_parameter_refinement}
+\end{equation}
+
+The Cartesian product of these offsets defines a
+local $3\times3$ candidate grid around each hotspot.
+The centre itself is excluded because it is already
+represented by the hotspot location. The remaining
+candidates are filtered according to the following
+conditions:
+\begin{itemize}
+    \item Parameter combinations outside the original
+    parameter domain are rejected.
+    \item Duplicate parameter combinations are removed.
+    \item Combinations already present in the original
+    training grid are excluded.
+\end{itemize}
+
+After applying these restrictions to the three
+selected hotspot centres, 15 additional parameter
+combinations remain.
+
+Each new parameter combination is passed to the
+full-order solver. Its converged temperature field
+is then processed using the same snapshot-preparation
+procedure as the original training data. Ghost cells
+are removed, the reference temperature is subtracted,
+and the resulting deviation field is flattened and
+stored as an additional snapshot column.
+
+The local refinement therefore increases the
+sampling density around the selected high-error
+regions without uniformly increasing the number
+of training points throughout the entire parameter
+domain.
+
+\subsection{Construction of the augmented POD basis}
+
+The augmented snapshot matrix is constructed by
+combining the original snapshots with the additional
+snapshots generated through local refinement:
+\begin{equation}
+    \boxed{
+    \mathbf{X}_{\mathrm{aug}}
+    =
+    \begin{bmatrix}
+    \mathbf{X}_{\mathrm{original}}
+    &
+    \mathbf{X}_{\mathrm{additional}}
+    \end{bmatrix}.
+    }
+    \label{eq:augmented_snapshot_matrix}
+\end{equation}
+
+The dimensions of the two snapshot datasets are
+\[
+\mathbf{X}_{\mathrm{original}}
+\in\mathbb{R}^{1000\times100},
+\]
+and
+\[
+\mathbf{X}_{\mathrm{additional}}
+\in\mathbb{R}^{1000\times15}.
+\]
+Consequently, the augmented snapshot matrix has
+dimensions
+\begin{equation}
+    \boxed{
+    \mathbf{X}_{\mathrm{aug}}
+    \in\mathbb{R}^{1000\times115}.
+    }
+    \label{eq:augmented_snapshot_dimensions}
+\end{equation}
+
+A new SVD is performed on the augmented snapshot
+matrix:
+\begin{equation}
+    \mathbf{X}_{\mathrm{aug}}
+    =
+    \mathbf{U}_{\mathrm{aug}}
+    \mathbf{\Sigma}_{\mathrm{aug}}
+    \mathbf{W}_{\mathrm{aug}}^T.
+    \label{eq:augmented_svd}
+\end{equation}
+The augmented POD basis is obtained by retaining
+the first $r$ columns of
+$\mathbf{U}_{\mathrm{aug}}$:
+\begin{equation}
+    \boxed{
+    \mathbf{V}_{r,\mathrm{aug}}
+    =
+    \mathbf{U}_{\mathrm{aug}}(:,1:r).
+    }
+    \label{eq:augmented_pod_basis}
+\end{equation}
+
+Adding the additional snapshots changes the snapshot
+matrix and therefore changes its singular values
+and spatial modes. The cumulative energy captured
+by the first three modes of the original and
+augmented bases is compared in
+Table~\ref{tab:original_augmented_energy}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Comparison of three-mode cumulative POD
+    energy for the original and augmented snapshot datasets.}
+    \label{tab:original_augmented_energy}
+    \begin{tabular}{ccc}
+        \toprule
+        \textbf{Basis} &
+        \textbf{Number of snapshots} &
+        \textbf{Cumulative energy in first 3 modes (\%)} \\
+        \midrule
+        Original & 100 & 99.9833 \\
+        Augmented & 115 & 99.9699 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The first three modes of the original basis capture
+approximately 99.9833\% of its snapshot energy,
+whereas the first three modes of the augmented basis
+capture approximately 99.9699\%. The slight decrease
+in cumulative energy reflects the redistribution of
+the snapshot energy after the additional temperature
+fields are included.
+
+This difference does not, by itself, establish
+whether the original or augmented basis gives more
+accurate predictions at unseen parameter
+combinations. The POD energy is calculated relative
+to the total energy of its own snapshot matrix.
+Adding snapshots changes that reference total and
+the resulting singular-value distribution. A lower
+cumulative energy at a fixed number of modes
+therefore does not necessarily correspond to a
+larger prediction error.
+
+The effect of snapshot enrichment must instead be
+assessed by evaluating both bases on the same
+independent parameter set, using the same retained
+mode counts and error metrics. This comparison is
+presented in the subsequent results section.
+
+\subsection{Code implementation}
+\label{subsec:refinement_code}
+
+The refinement and augmented-basis construction
+workflow is implemented through six Python scripts
+in the \texttt{F05\_refinement} directory.
+
+\begin{itemize}
+
+    \item \texttt{f00\_generate\_large\_training\_cases.py}:
+    Generates the 100-case training parameter grid
+    over the prescribed parameter domain. The
+    function \texttt{build\_parameter\_grid} creates
+    the parameter combinations and saves the grid
+    as a CSV file. The script then processes each
+    case using \texttt{run\_fom\_case}. Converged
+    temperature solutions are converted into
+    snapshot columns, and their associated
+    simulation information is stored in
+    \texttt{snapshot\_case\_records}. The snapshot
+    columns and case records are saved for
+    subsequent POD construction.
+
+    \item \texttt{f01\_build\_pod\_basis.py}:
+    Loads the training snapshot matrix and its
+    associated case records, performs the SVD,
+    and saves the resulting POD data. This script
+    constructs the original basis used in the
+    subsequent mode-count study.
+
+    \item \texttt{f02\_generate\_large\_test\_cases.py}:
+    Generates the LHS evaluation dataset. Its
+    function \texttt{build\_latin\_hypercube\_cases}
+    creates the parameter combinations within the
+    prescribed domain. The function
+    \texttt{run\_lhs\_test\_case\_generation}
+    then runs the full-order solver for these
+    combinations and saves the resulting case
+    records.
+
+    \item \texttt{f03\_mode\_count\_study.py}:
+    Evaluates the original POD basis using the
+    selected retained-mode counts. The function
+    \texttt{run\_rom\_for\_mode\_count} performs
+    the Galerkin projection and reduced-order
+    solution for a specified case and mode count.
+    The main function, \texttt{run\_mode\_count\_study},
+    loads the POD modes and LHS evaluation cases,
+    constructs the required full-order operators,
+    and evaluates the ROM for each selected mode
+    count. It saves the case-wise error records
+    and generates error visualizations. The
+    function \texttt{plot\_error\_statistics}
+    summarizes the error metrics as a function
+    of the retained basis dimension.
+
+    \item \texttt{f04\_generate\_augmented\_training\_set.py}:
+    Selects the hotspot candidates and generates
+    the additional training parameter combinations.
+    The function \texttt{build\_hotspot\_candidates}
+    loads the high-error cases from the mode-count
+    study, considers the 20 worst-error records
+    for each selected mode count, and selects and
+    ranks the top candidates. It then groups
+    repeated parameter combinations and calculates
+    the mean rank score, support fraction, and
+    base score for each group.
+
+    The function \texttt{select\_hotspots} applies
+    the spatial-diversity criterion to select the
+    hotspot centres. The function
+    \texttt{build\_augmented\_parameter\_grid}
+    generates local parameter combinations around
+    these centres and applies the parameter-domain,
+    duplicate, and original-grid restrictions.
+    Finally,
+    \texttt{run\_augmented\_training\_set\_generation}
+    solves the additional cases using the
+    full-order model, adds their converged
+    temperature fields to the augmented snapshot
+    dataset, and saves the corresponding records.
+
+    \item \texttt{f05\_build\_augmented\_pod\_basis.py}:
+    Constructs the augmented POD basis. The
+    function \texttt{combine\_snapshot\_datasets}
+    loads the original and additional snapshot
+    matrices and concatenates them column-wise.
+    The function \texttt{build\_augmented\_pod\_basis}
+    then performs the SVD on the combined matrix
+    and saves the augmented POD results.
+
+\end{itemize}
+
+The scripts separate the error-screening process
+from the generation of additional training data
+and the construction of the augmented basis. The
+original basis is first evaluated over the LHS
+parameter set. Its high-error cases guide the
+selection of local enrichment regions. Additional
+full-order snapshots are then generated around
+these regions and combined with the original
+training data to obtain the augmented POD basis.
