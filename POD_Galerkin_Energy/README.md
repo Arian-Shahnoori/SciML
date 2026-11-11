@@ -28,7 +28,7 @@ $$
 
 The maximum streamwise velocity is 4.5 at the channel centreline, and the mean streamwise velocity is 3. The momentum equations are not solved, and the velocity field does not change with the thermal parameters.
 
-![Computational domain, thermal boundary conditions, and prescribed parabolic velocity profile](report/figures/computational_domain_velocity_profile.pdf)
+![Computational domain, thermal boundary conditions, and prescribed parabolic velocity profile](report/figures/computational_domain_velocity_profile.png)
 
 ### Governing equation
 
@@ -191,7 +191,7 @@ The mean relative discrete L2 error decreased as more modes were retained:
 
 The triangulated error maps in the report visualize interpolation over the irregular LHS samples; they do not represent additional ROM evaluations between sampled points.
 
-![Relative L2 error statistics for the original POD basis across the LHS screening set](report/figures/lhs_mode_count_error.pdf)
+![Relative L2 error statistics for the original POD basis across the LHS screening set](report/figures/relative_l2_error_triangulated_lhs.png)
 
 ### Hotspot selection and local enrichment
 
@@ -226,11 +226,11 @@ The relative L2 error is calculated from the complete reconstructed temperature 
 | 8 | 0.000876 | 0.000141 | 83.91% | 0.018205 | 0.001747 | 90.40% | 11% |
 | 10 | 0.000577 | 0.0000174 | 96.98% | 0.013008 | 0.000401 | 96.92% | 20% |
 
-![Mean, median, 95th-percentile, and maximum relative L2 errors for the original and augmented POD bases](assets/figures/original_augmented_statistics.png)
+![Mean, median, 95th-percentile, and maximum relative L2 errors for the original and augmented POD bases](report/figures/original_augmented_rom_comparison_error_statistics.png)
 
-![Case-wise changes in relative L2 error caused by snapshot enrichment; positive values indicate higher error with the augmented basis](assets/figures/paired_casewise_error_change.png)
+![Case-wise changes in relative L2 error caused by snapshot enrichment; positive values indicate higher error with the augmented basis](report/figures/original_augmented_rom_comparison_error_reduction.png)
 
-![Triangulated relative L2 error maps for the original and augmented bases at ten retained modes](assets/figures/ten_mode_error_map.png)
+![Triangulated relative L2 error maps for the original and augmented bases at ten retained modes](report/figures/error_map_10_modes.png)
 
 ### Interpretation
 
