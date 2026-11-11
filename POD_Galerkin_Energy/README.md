@@ -16,15 +16,15 @@ The original basis is evaluated over a Latin hypercube sampling (LHS) dataset. H
 
 The computational domain is
 
-\[
+$$
 \Omega = [0,5]\times[0,1],
-\]
+$$
 
 with the prescribed parabolic velocity field
 
-\[
+$$
 u(y)=18y(1-y), \qquad v(y)=0.
-\]
+$$
 
 The maximum streamwise velocity is 4.5 at the channel centreline, and the mean streamwise velocity is 3. The momentum equations are not solved, and the velocity field does not change with the thermal parameters.
 
@@ -32,44 +32,44 @@ The maximum streamwise velocity is 4.5 at the channel centreline, and the mean s
 
 The steady dimensionless energy equation is
 
-\[
+$$
 c\left(u\frac{\partial T}{\partial x}+v\frac{\partial T}{\partial y}\right)
 =\frac{1}{Pe}\nabla^2T+\frac{Br}{Pe}\Phi,
-\]
+$$
 
 where `Pe` is the Peclet number, `Br` is the Brinkman number, and `c` is the convection coefficient. For the prescribed velocity field, the continuous viscous-dissipation function is
 
-\[
+$$
 \Phi(y)=324(1-2y)^2.
-\]
+$$
 
 The effective parameter is defined as
 
-\[
+$$
 \mu=cPe.
-\]
+$$
 
 The study fixes `c = 1`, so `Pe = μ`, and investigates
 
-\[
+$$
 1\leq\mu\leq100, \qquad 0.01\leq Br\leq2.
-\]
+$$
 
 ### Thermal boundary conditions
 
-\[
+$$
 T(0,y)=y, \qquad T(x,0)=0, \qquad T(x,1)=1,
-\]
+$$
 
-\[
+$$
 \left.\frac{\partial T}{\partial x}\right|_{x=5}=0.
-\]
+$$
 
 The non-homogeneous inlet and wall conditions are handled by decomposing the temperature into a reference field and a deviation field:
 
-\[
+$$
 T(x,y)=T_{ref}(y)+\theta(x,y), \qquad T_{ref}(y)=y.
-\]
+$$
 
 The deviation field therefore has homogeneous boundary conditions. POD snapshots are formed from `θ`, and the reference profile is added back when reconstructing the temperature.
 
@@ -93,16 +93,16 @@ Second-order central differences are used for convection and diffusion. One laye
 
 After spatial discretization, the FOM is written in affine semi-discrete form:
 
-\[
+$$
 \frac{d\mathbf T}{dt}=\mathbf A\mathbf T+\mathbf b.
-\]
+$$
 
 The steady solution is obtained by backward-Euler pseudo-time marching:
 
-\[
+$$
 (\mathbf I-\Delta t\mathbf A)\mathbf T^{n+1}
 =\mathbf T^n+\Delta t\mathbf b.
-\]
+$$
 
 A sparse LU factorization is reused during the iterations for each fixed parameter case. Pseudo-time is a numerical procedure for reaching a steady solution; the ROM developed in this project is a steady-state model, not a transient reduced-order model.
 
@@ -114,16 +114,16 @@ The main training dataset contains 100 full-order solutions from a uniform `10 �
 
 For each case, the reference temperature is subtracted, ghost cells are removed, and the deviation field is flattened to form one column of the snapshot matrix:
 
-\[
+$$
 \mathbf X=\begin{bmatrix}\boldsymbol\theta_1&\boldsymbol\theta_2&\cdots&\boldsymbol\theta_{100}\end{bmatrix}
 \in\mathbb R^{1000\times100}.
-\]
+$$
 
 The snapshot matrix is decomposed using singular value decomposition:
 
-\[
+$$
 \mathbf X=\mathbf U\boldsymbol\Sigma\mathbf W^T.
-\]
+$$
 
 The first `r` columns of `U` form the orthonormal POD basis `V_r`. For the original 100-snapshot basis, the first three modes capture **99.9833%** of the snapshot energy, and the first four capture **99.9995%**. These energy values describe reconstruction of the training snapshot matrix; they do not, by themselves, establish prediction accuracy at new parameter values.
 
@@ -131,36 +131,36 @@ The first `r` columns of `U` form the orthonormal POD basis `V_r`. For the origi
 
 The full-order spatial operator is decomposed as
 
-\[
+$$
 \mathbf A=c\mathbf C_h+\frac{1}{Pe}\mathbf L_h,
-\]
+$$
 
 where `C_h` and `L_h` are the discrete convection and diffusion operators. The dissipation source is represented by `Φ_h`. The reference-temperature transformation also introduces a discrete lifting residual, `g_lift`, which accounts for the reference field and affine boundary contributions.
 
 For `\theta \approx V_r a`, the projected quantities are
 
-\[
+$$
 \mathbf C_r=\mathbf V_r^T\mathbf C_h\mathbf V_r,\qquad
 \mathbf L_r=\mathbf V_r^T\mathbf L_h\mathbf V_r,
-\]
+$$
 
-\[
+$$
 \boldsymbol\Phi_r=\mathbf V_r^T\boldsymbol\Phi_h,\qquad
 \mathbf g_r=\mathbf V_r^T\mathbf g_{lift}.
-\]
+$$
 
 The steady reduced system is
 
-\[
+$$
 (\mu\mathbf C_r+\mathbf L_r)\mathbf a
 =-Br\,\boldsymbol\Phi_r-Pe\,\mathbf g_r.
-\]
+$$
 
 The lifting contribution is retained in the general formulation and should only be omitted when its discrete value has been verified as negligible. The reduced temperature field is reconstructed as
 
-\[
+$$
 \mathbf T_{ROM}=\mathbf T_{ref}+\mathbf V_r\mathbf a.
-\]
+$$
 
 This is a discrete Galerkin projection of the spatial operators assembled by the FOM. Its matrix sign convention follows the FOM right-hand-side operators and should not be confused with a separately derived continuous weak-form stiffness matrix.
 
@@ -170,9 +170,9 @@ This is a discrete Galerkin projection of the spatial operators assembled by the
 
 The original basis was evaluated using 100 LHS parameter samples, separate from the original POD training grid. The selected mode counts were
 
-\[
+$$
 r\in\{1,2,3,4,5,6,8,10\}.
-\]
+$$
 
 The mean relative discrete L2 error decreased as more modes were retained:
 
