@@ -28,7 +28,7 @@ $$
 
 The maximum streamwise velocity is 4.5 at the channel centreline, and the mean streamwise velocity is 3. The momentum equations are not solved, and the velocity field does not change with the thermal parameters.
 
-![Computational domain, thermal boundary conditions, and prescribed parabolic velocity profile](assets/figures/problem_setup.png)
+![Computational domain, thermal boundary conditions, and prescribed parabolic velocity profile](report/figures/computational_domain_velocity_profile.pdf)
 
 ### Governing equation
 
